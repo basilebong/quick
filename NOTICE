@@ -1,0 +1,31 @@
+Quick
+Copyright (c) 2026-present Basile.
+
+Source code in this repository is licensed under the Elastic License 2.0
+(ELv2), as found in the LICENSE file.
+
+This product includes software developed by third parties under permissive
+licenses. A non-exhaustive list:
+
+- Bun (MIT)                       https://github.com/oven-sh/bun
+- Hono (MIT)                      https://github.com/honojs/hono
+- React (MIT)                     https://github.com/facebook/react
+- Vite (MIT)                      https://github.com/vitejs/vite
+- TanStack Router/Query/Form (MIT) https://tanstack.com
+- Tailwind CSS (MIT)              https://github.com/tailwindlabs/tailwindcss
+- shadcn/ui (MIT)                 https://github.com/shadcn-ui/ui
+- Radix UI (MIT)                  https://github.com/radix-ui/primitives
+- Vaul (MIT)                      https://github.com/emilkowalski/vaul
+- Sonner (MIT)                    https://github.com/emilkowalski/sonner
+- Phosphor Icons (MIT)            https://github.com/phosphor-icons/react
+- Drizzle ORM (Apache-2.0)        https://github.com/drizzle-team/drizzle-orm
+- Better Auth (MIT)               https://github.com/better-auth/better-auth
+- ts-pattern (MIT)                https://github.com/gvergnaud/ts-pattern
+- Valibot (MIT)                   https://github.com/fabian-hiller/valibot
+- Zod (MIT)                       https://github.com/colinhacks/zod
+- @modelcontextprotocol/sdk (MIT) https://github.com/modelcontextprotocol/typescript-sdk
+- ulid (MIT)                      https://github.com/ulid/javascript
+- Litestream (Apache-2.0)         https://github.com/benbjohnson/litestream
+- Caddy (Apache-2.0)              https://github.com/caddyserver/caddy
+
+Full license texts available in each dependency's repository.
