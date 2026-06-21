@@ -6,7 +6,7 @@ export type SubdomainResult = { kind: "apex" } | { kind: "app"; label: string };
 // subdomain label for an app, or "apex" for the dashboard host and anything that
 // does not look like a single-label subdomain of the root.
 export const parseSubdomain = (host: string, rootDomain: string): SubdomainResult => {
-  const h = (host.split(":")[0] ?? "").toLowerCase();
+  const h = (host.split(":")[0] ?? "").trim().toLowerCase();
   const rd = rootDomain.toLowerCase();
   if (h === "" || h === rd) return { kind: "apex" };
   if (!h.endsWith(`.${rd}`)) return { kind: "apex" };

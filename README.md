@@ -49,6 +49,84 @@ packages/
   app-files/    per-app file storage       (/_api/files)
 ```
 
+## Deploy on a VPS
+
+Quick runs as four containers — **app · Caddy · Litestream · restic** — from one `docker compose`
+profile on a single host with Docker installed.
+
+**You provide:** a VPS with Docker + the Compose plugin and ports **80/443** open; a root domain
+whose DNS is hosted on **Hetzner DNS** plus an API token scoped to that zone (for the wildcard
+TLS DNS-01 challenge); a **Google OAuth** web client; and an S3-compatible **object storage** bucket
+(e.g. Hetzner) for backups.
+
+**1. Point DNS at the VPS** — two records, both to the VPS IP:
+
+```
+quick.example.com     A/AAAA → <vps-ip>     # apex: dashboard + owner API + MCP
+*.quick.example.com   A/AAAA → <vps-ip>     # deployed apps
+```
+
+**2. Create the Google OAuth client** (type *Web application*) with one authorized redirect URI:
+
+```
+https://quick.example.com/api/auth/callback/google
+```
+
+**3. Configure `.env`** on the VPS:
+
+```bash
+git clone https://github.com/basilebong/quick && cd quick
+cp .env.example .env
+```
+
+Fill it in (every key is documented inline in [`.env.example`](.env.example)). The production-specific
+values:
+
+```ini
+QUICK_DOMAIN=quick.example.com
+ACME_EMAIL=you@example.com
+HETZNER_DNS_API_TOKEN=...              # scoped to the zone above
+BETTER_AUTH_URL=https://quick.example.com
+BETTER_AUTH_SECRET=...                 # openssl rand -hex 32
+GOOGLE_ID=...
+GOOGLE_SECRET=...
+QUICK_ALLOWED_EMAILS=you@example.com   # owner account(s), comma-separated
+MCP_HOST=quick.example.com
+NODE_ENV=production
+STORAGE_BOX_KEY=...                    # object-storage credentials (Litestream + restic)
+STORAGE_BOX_SECRET=...
+RESTIC_REPOSITORY=s3:https://fsn1.your-objectstorage.com/quick-backup/apps
+RESTIC_PASSWORD=...
+```
+
+**4. Launch:**
+
+```bash
+docker compose --profile prod up -d --build
+```
+
+That starts:
+
+- **app** — the Bun server on `:3000`; DB migrations run automatically on start and data persists
+  under `./data`.
+- **caddy** — terminates TLS on `:80/:443`: the apex cert via HTTP-01, the `*.quick.<domain>`
+  wildcard via the Hetzner DNS-01 challenge.
+- **litestream** — streams the SQLite DB (including inline file BLOBs) to object storage.
+- **apps-backup** — a daily encrypted restic backup of deployed bundles + uploads under `/data/apps`.
+
+Give Caddy a minute to obtain certificates (`docker compose --profile prod logs -f caddy`), then open
+**https://quick.example.com** and sign in with an owner Google account.
+
+**5. Deploy an app.** Create a personal access token in the dashboard (**Tokens**), then from your
+machine:
+
+```bash
+quick deploy ./my-app     # → my-app.quick.example.com
+```
+
+**Updating:** re-run `docker compose --profile prod up -d --build` (migrations re-run idempotently).
+The included `.github/workflows/deploy.yml` can instead build the images and SSH-deploy on push.
+
 ## Development
 
 ```bash

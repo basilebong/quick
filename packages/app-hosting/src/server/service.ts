@@ -36,7 +36,15 @@ import {
   removeAppDir,
   writeDeployment,
 } from "./deploy.ts";
-import { accessLog, accessTokens, apps, deployments, shareLinks } from "./schema.ts";
+import {
+  accessLog,
+  accessTokens,
+  appSessionCodes,
+  appSessions,
+  apps,
+  deployments,
+  shareLinks,
+} from "./schema.ts";
 import {
   rowToAccessLogEntry,
   rowToAppContext,
@@ -45,7 +53,14 @@ import {
   rowToShareLinkView,
   rowToTokenView,
 } from "./serialize.ts";
-import { PAT_PREFIX, generateLinkToken, generatePat, hashToken } from "./tokens.ts";
+import {
+  PAT_PREFIX,
+  generateAppSessionToken,
+  generateLinkToken,
+  generatePat,
+  generateSsoCode,
+  hashToken,
+} from "./tokens.ts";
 
 export type HostingService = {
   // AppRegistry
@@ -93,7 +108,18 @@ export type HostingService = {
   verifyAccessToken(
     rawToken: string,
   ): Promise<{ userId: UserId; email: string; name: string } | null>;
+  // per-app sessions (google mode) + the apex→tenant one-time-code handoff
+  createSsoCode(appId: AppId, userId: UserId): Promise<string>;
+  redeemSsoCode(rawCode: string, appId: AppId): Promise<{ userId: UserId } | null>;
+  createAppSession(appId: AppId, userId: UserId): Promise<string>;
+  validateAppSession(
+    appId: AppId,
+    rawToken: string,
+  ): Promise<{ userId: UserId; email: string; name: string } | null>;
 };
+
+const SSO_CODE_TTL_MS = 60_000;
+export const APP_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const deploymentChecksum = (files: DeployFile[]): string => {
   const h = createHash("sha256");
@@ -406,6 +432,70 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         .set({ lastUsedAt: new Date() })
         .where(eq(accessTokens.id, row.id));
       return { userId: parseUserId(owner.id), email: owner.email, name: owner.name };
+    },
+
+    async createSsoCode(appId, userId) {
+      const code = generateSsoCode();
+      await db.insert(appSessionCodes).values({
+        id: ulid(),
+        appId,
+        userId,
+        codeHash: hashToken(code),
+        expiresAt: new Date(Date.now() + SSO_CODE_TTL_MS),
+        createdAt: new Date(),
+      });
+      return code;
+    },
+
+    async redeemSsoCode(rawCode, appId) {
+      const rows = await db
+        .select()
+        .from(appSessionCodes)
+        .where(
+          and(eq(appSessionCodes.appId, appId), eq(appSessionCodes.codeHash, hashToken(rawCode))),
+        )
+        .limit(1);
+      const row = rows[0];
+      if (row === undefined) return null;
+      await db.delete(appSessionCodes).where(eq(appSessionCodes.id, row.id));
+      if (row.expiresAt.getTime() <= Date.now()) return null;
+      return { userId: parseUserId(row.userId) };
+    },
+
+    async createAppSession(appId, userId) {
+      const token = generateAppSessionToken();
+      await db.insert(appSessions).values({
+        id: ulid(),
+        appId,
+        userId,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + APP_SESSION_TTL_MS),
+        createdAt: new Date(),
+        lastUsedAt: null,
+      });
+      return token;
+    },
+
+    async validateAppSession(appId, rawToken) {
+      const rows = await db
+        .select()
+        .from(appSessions)
+        .where(and(eq(appSessions.appId, appId), eq(appSessions.tokenHash, hashToken(rawToken))))
+        .limit(1);
+      const row = rows[0];
+      if (row === undefined || row.expiresAt.getTime() <= Date.now()) return null;
+      const userRows = await db
+        .select({ id: users.id, email: users.email, name: users.name })
+        .from(users)
+        .where(eq(users.id, row.userId))
+        .limit(1);
+      const u = userRows[0];
+      if (u === undefined) return null;
+      await db
+        .update(appSessions)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(appSessions.id, row.id));
+      return { userId: parseUserId(u.id), email: u.email, name: u.name };
     },
   };
 };

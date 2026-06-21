@@ -6,7 +6,7 @@ import type { Context } from "hono";
 // Sent on every served app asset. Apps are user-authored, so default to
 // clickjacking + sniffing protections. We deliberately do NOT set a script/style
 // CSP (it would break legitimate apps); per-app origin isolation is the real wall.
-const SECURITY_HEADERS: Record<string, string> = {
+export const SECURITY_HEADERS: Record<string, string> = {
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",
   "content-security-policy": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
@@ -37,7 +37,9 @@ export const createServeAppStatic = (opts: { appsDir: string }) => {
     const rel = pathname === "/" || pathname === "" ? "index.html" : pathname.replace(/^\/+/, "");
     const target = resolve(versionDir, rel);
     const within = relative(versionDir, target);
-    if (within.startsWith("..") || isAbsolute(within)) return c.text("Forbidden", 403);
+    if (within.startsWith("..") || isAbsolute(within)) {
+      return c.text("Forbidden", 403, headersWith());
+    }
 
     const file = Bun.file(target);
     if (await file.exists()) return new Response(file, { headers: headersWith() });
@@ -49,6 +51,6 @@ export const createServeAppStatic = (opts: { appsDir: string }) => {
         headers: headersWith({ "content-type": "text/html; charset=utf-8" }),
       });
     }
-    return c.text("Not found", 404);
+    return c.text("Not found", 404, headersWith());
   };
 };

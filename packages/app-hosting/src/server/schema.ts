@@ -105,8 +105,55 @@ export const accessTokens = sqliteTable(
   (t) => [index("access_tokens_owner_idx").on(t.ownerUserId)],
 );
 
+// A google-mode viewer's per-app credential. The `quick_app_sess` cookie holds an
+// opaque random token; only its SHA-256 hash is stored, re-validated every request
+// (so expiry takes effect immediately and there is nothing signed to forge). It is
+// host-only to one app subdomain — the owner's apex session never reaches a tenant.
+export const appSessions = sqliteTable(
+  "app_sessions",
+  {
+    id: text("id").primaryKey(),
+    appId: text("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    uniqueIndex("app_sessions_app_token_idx").on(t.appId, t.tokenHash),
+    index("app_sessions_app_idx").on(t.appId),
+  ],
+);
+
+// A single-use, short-TTL code minted on the apex (where the Better Auth session
+// lives) and redeemed on the tenant subdomain to bootstrap an `appSessions` row —
+// the cross-subdomain handoff that replaces a shared parent-domain cookie.
+export const appSessionCodes = sqliteTable(
+  "app_session_codes",
+  {
+    id: text("id").primaryKey(),
+    appId: text("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull().unique(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("app_session_codes_app_idx").on(t.appId)],
+);
+
 export type AppRow = typeof apps.$inferSelect;
 export type DeploymentRow = typeof deployments.$inferSelect;
 export type ShareLinkRow = typeof shareLinks.$inferSelect;
 export type AccessLogRow = typeof accessLog.$inferSelect;
 export type AccessTokenRow = typeof accessTokens.$inferSelect;
+export type AppSessionRow = typeof appSessions.$inferSelect;
+export type AppSessionCodeRow = typeof appSessionCodes.$inferSelect;

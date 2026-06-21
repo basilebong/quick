@@ -18,6 +18,9 @@ export const createOwnerAuth = (deps: {
     if (authz?.startsWith("Bearer ")) {
       const owner = await deps.service.verifyAccessToken(authz.slice("Bearer ".length));
       if (owner === null) return c.json({ error: "unauthorized" }, 401);
+      if (!isAllowedEmail(deps.allowedEmails, owner.email)) {
+        return c.json({ error: "forbidden", message: "Owner access only" }, 403);
+      }
       c.set("user", { id: owner.userId, email: owner.email, name: owner.name });
       return next();
     }

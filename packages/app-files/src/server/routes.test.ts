@@ -3,6 +3,7 @@ import type { Db, TenantVariables, ViewerVariables } from "@quick/core/server";
 import { createTestDb } from "@quick/core/server/test";
 import { parseAppId, parseAppSlug } from "@quick/core/shared";
 import { Hono } from "hono";
+import { MAX_FILE_BYTES } from "../shared/index.ts";
 import { createFilesAppRoutes } from "./routes.ts";
 import { createFilesService } from "./service.ts";
 
@@ -59,5 +60,14 @@ describe("files /_api/files", () => {
     const app = build(createTestDb(), "app_a");
     const res = await app.request("/_api/files?path=../escape.txt", { method: "POST", body: "x" });
     expect(res.status).toBe(400);
+  });
+
+  test("rejects an oversized upload (413) before buffering the whole body", async () => {
+    const app = build(createTestDb(), "app_a");
+    const res = await app.request("/_api/files?path=big.bin", {
+      method: "POST",
+      body: new Uint8Array(MAX_FILE_BYTES + 1),
+    });
+    expect(res.status).toBe(413);
   });
 });

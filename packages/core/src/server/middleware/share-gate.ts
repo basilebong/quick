@@ -10,8 +10,15 @@ import type { ShareResolver, TenantVariables, ViewerVariables } from "../tenant.
 // effect immediately and there is nothing signed to forge.
 export const LINK_COOKIE = "quick_link";
 
-// A narrow read-only view of Better Auth's session API, so the gate (and its
-// tests) depend only on `getSession`. The real `auth.api` satisfies it.
+// A google-mode viewer's per-app credential. HOST-ONLY (no Domain) so the owner's
+// apex Better Auth session never reaches a tenant subdomain; set by /sso/callback
+// from the apex one-time-code handoff and re-validated against the store here.
+export const APP_SESSION_COOKIE = "quick_app_sess";
+
+// A narrow read-only view of Better Auth's session API. The gate no longer reads
+// the apex session directly (host-only cookies don't reach tenant subdomains); the
+// apex /sso/grant route uses this to mint the handoff code. The real `auth.api`
+// satisfies it.
 export type SessionReader = {
   getSession(opts: {
     headers: Headers;
@@ -20,9 +27,7 @@ export type SessionReader = {
 
 export type ShareGateDeps = {
   resolver: ShareResolver;
-  session: SessionReader;
   apexBaseUrl: string;
-  signInPath: string;
   secureCookies: boolean;
 };
 
@@ -42,13 +47,17 @@ export const createShareGate = (deps: ShareGateDeps) =>
     const isNavigation = c.req.header("sec-fetch-dest") === "document";
 
     if (app.shareMode === "google") {
-      const session = await deps.session.getSession({ headers: c.req.raw.headers });
-      if (session?.user) {
+      const token = getCookie(c, APP_SESSION_COOKIE);
+      const session =
+        token !== undefined && token !== ""
+          ? await deps.resolver.validateAppSession(app.id, token)
+          : null;
+      if (session !== null) {
         const viewer: Viewer = {
           kind: "user",
-          userId: session.user.id,
-          email: session.user.email,
-          name: session.user.name,
+          userId: session.userId,
+          email: session.email,
+          name: session.name,
         };
         c.set("viewer", viewer);
         if (isNavigation) {
@@ -64,13 +73,13 @@ export const createShareGate = (deps: ShareGateDeps) =>
         }
         return next();
       }
-      // Not signed in: hand off to Better Auth sign-in on the apex. After Google
-      // OAuth, the cross-subdomain session cookie is set and the browser returns
-      // here (callbackURL = this URL), where getSession then succeeds.
+      // No host-only app session: hand off to the apex one-time-code grant. The
+      // apex (where the Better Auth session lives) mints a code; /sso/callback on
+      // this host then sets quick_app_sess and returns the browser here.
       const u = new URL(c.req.url);
-      const appUrl = `${u.protocol}//${u.host}${u.pathname}${u.search}`;
+      const nextPath = `${u.pathname}${u.search}`;
       return c.redirect(
-        `${deps.apexBaseUrl}${deps.signInPath}?next=${encodeURIComponent(appUrl)}`,
+        `${deps.apexBaseUrl}/sso/grant?app=${encodeURIComponent(u.host)}&next=${encodeURIComponent(nextPath)}`,
         302,
       );
     }

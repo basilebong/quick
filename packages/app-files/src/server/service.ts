@@ -96,6 +96,7 @@ export const createFilesService = (db: Db): FilesService => ({
   },
 
   async get(appId, path) {
+    if (!isValidFilePath(path)) return err({ kind: "invalid_input", message: "invalid file path" });
     const rows = await db
       .select()
       .from(appFiles)
@@ -107,6 +108,7 @@ export const createFilesService = (db: Db): FilesService => ({
   },
 
   async remove(appId, path) {
+    if (!isValidFilePath(path)) return err({ kind: "invalid_input", message: "invalid file path" });
     const deleted = await db
       .delete(appFiles)
       .where(and(eq(appFiles.appId, appId), eq(appFiles.path, path)))

@@ -44,7 +44,12 @@ export type LinkValidation =
   | { kind: "expired" }
   | { kind: "invalid" };
 
+// The identity carried by a redeemed per-app session (`quick_app_sess`), enough
+// to build a google-mode `Viewer` without the apex session cookie being present.
+export type AppSessionViewer = { userId: string; email: string; name: string };
+
 export type ShareResolver = {
   validateLinkToken(appId: AppId, rawToken: string): Promise<LinkValidation>;
+  validateAppSession(appId: AppId, rawToken: string): Promise<AppSessionViewer | null>;
   recordAccess(entry: AccessEntry): Promise<void>;
 };

@@ -104,6 +104,7 @@ export const createStoreService = (db: Db): StoreService => ({
   },
 
   async get(appId, collection, id) {
+    if (!isValidCollection(collection)) return err(invalidCollection);
     const rows = await db
       .select()
       .from(appRecords)
@@ -121,6 +122,7 @@ export const createStoreService = (db: Db): StoreService => ({
   },
 
   async replace(appId, collection, id, data) {
+    if (!isValidCollection(collection)) return err(invalidCollection);
     const bad = checkData(data);
     if (bad !== null) return err(bad);
     const updated = await db
@@ -140,6 +142,7 @@ export const createStoreService = (db: Db): StoreService => ({
   },
 
   async merge(appId, collection, id, data) {
+    if (!isValidCollection(collection)) return err(invalidCollection);
     if (!isPlainObject(data)) {
       return err({ kind: "invalid_input", message: "merge data must be a JSON object" });
     }
@@ -163,7 +166,13 @@ export const createStoreService = (db: Db): StoreService => ({
     const updated = await db
       .update(appRecords)
       .set({ dataJson: JSON.stringify(merged), updatedAt: new Date() })
-      .where(eq(appRecords.id, id))
+      .where(
+        and(
+          eq(appRecords.appId, appId),
+          eq(appRecords.collection, collection),
+          eq(appRecords.id, id),
+        ),
+      )
       .returning();
     const urow = updated[0];
     if (urow === undefined) return err({ kind: "not_found" });
@@ -171,6 +180,7 @@ export const createStoreService = (db: Db): StoreService => ({
   },
 
   async remove(appId, collection, id) {
+    if (!isValidCollection(collection)) return err(invalidCollection);
     const deleted = await db
       .delete(appRecords)
       .where(

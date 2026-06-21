@@ -6,9 +6,12 @@ import {
 import {
   type HostingService,
   type OwnerVariables,
+  SECURITY_HEADERS,
   createHostingRoutes,
   createOwnerAuth,
   createServeAppStatic,
+  createSsoCallback,
+  createSsoGrant,
   createTokenRoutes,
 } from "@quick/app-hosting/server";
 import {
@@ -63,6 +66,12 @@ const handleError = (err: Error, c: Context): Response => {
   return c.json({ kind: "internal_error" }, 500);
 };
 
+// Tenant error responses must still carry the served-app isolation headers.
+const handleTenantError = (err: Error, c: Context): Response => {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) c.header(k, v);
+  return handleError(err, c);
+};
+
 type Bindings = { tenant: Tenant };
 
 export const createApp = (o: ComposeOptions) => {
@@ -83,6 +92,7 @@ export const createApp = (o: ComposeOptions) => {
       }),
     )
     .use("/api/*", cors({ origin: o.baseURL, credentials: true }))
+    .use("/api/*", createOriginCheck())
     .use(
       "/api/*",
       createOwnerAuth({ auth: o.auth, allowedEmails: o.allowedEmails, service: o.hosting }),
@@ -93,6 +103,16 @@ export const createApp = (o: ComposeOptions) => {
     .route("/api/apps/:appId/files", createFilesAdminRoutes({ service: o.files }))
     .route("/api/apps", createHostingRoutes({ service: o.hosting }))
     .route("/api/tokens", createTokenRoutes({ service: o.hosting }))
+    .route(
+      "/",
+      createSsoGrant({
+        session: { getSession: (opts) => o.auth.api.getSession(opts) },
+        service: o.hosting,
+        rootDomain: o.rootDomain,
+        apexBaseUrl: o.baseURL,
+        signInPath: "/sign-in",
+      }),
+    )
     .route("/", mountStatic(o.staticRoot))
     .onError(handleError);
 
@@ -102,13 +122,12 @@ export const createApp = (o: ComposeOptions) => {
       c.set("tenant", c.env.tenant);
       return next();
     })
+    .use("*", createSsoCallback({ service: o.hosting, secureCookies: o.secureCookies }))
     .use(
       "*",
       createShareGate({
         resolver: o.hosting,
-        session: { getSession: (opts) => o.auth.api.getSession(opts) },
         apexBaseUrl: o.baseURL,
-        signInPath: "/sign-in",
         secureCookies: o.secureCookies,
       }),
     )
@@ -117,7 +136,7 @@ export const createApp = (o: ComposeOptions) => {
     .route("/_api/files", createFilesAppRoutes({ service: o.files }))
     .get("/_api/me", (c) => c.json({ viewer: c.var.viewer }))
     .get("*", createServeAppStatic({ appsDir: o.appsDir }))
-    .onError(handleError);
+    .onError(handleTenantError);
 
   // Top dispatcher: resolve the tenant from Host, then hand off to the right app.
   return new Hono<{ Variables: TenantVariables }>()

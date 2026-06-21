@@ -24,4 +24,16 @@ describe("auth (integration)", () => {
       expect(user.id).toBeString();
     });
   });
+
+  // security.md (load-bearing): the apex session cookie must be HOST-ONLY — never
+  // scoped to the parent domain — so it is never sent to a tenant subdomain. And
+  // tenant subdomains (same-site, untrusted) must not be trusted origins.
+  test("session cookie carries no Domain attribute and no subdomain is a trusted origin", async () => {
+    await withTestAuth({ baseURL: "https://quick.example.com" }, async ({ auth }) => {
+      const ctx = await auth.$context;
+      expect(ctx.authCookies.sessionToken.attributes.domain).toBeUndefined();
+      expect(ctx.trustedOrigins.some((o) => o.includes("*"))).toBe(false);
+      expect(ctx.trustedOrigins).toContain("https://quick.example.com");
+    });
+  });
 });

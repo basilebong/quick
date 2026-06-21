@@ -32,6 +32,7 @@ export { createRequireOwner } from "./middleware/owner.ts";
 export { createResolveApp } from "./middleware/resolve-app.ts";
 export { createRequireSession, type SessionVariables } from "./middleware/session.ts";
 export {
+  APP_SESSION_COOKIE,
   createShareGate,
   LINK_COOKIE,
   type SessionReader,
@@ -42,6 +43,7 @@ export type {
   AccessEvent,
   AppContext,
   AppRegistry,
+  AppSessionViewer,
   LinkValidation,
   ShareResolver,
   Tenant,

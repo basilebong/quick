@@ -8,7 +8,7 @@ import type {
   TenantVariables,
   ViewerVariables,
 } from "../tenant.ts";
-import { LINK_COOKIE, type SessionReader, createShareGate } from "./share-gate.ts";
+import { APP_SESSION_COOKIE, LINK_COOKIE, createShareGate } from "./share-gate.ts";
 
 const appCtx = (shareMode: "google" | "link"): AppContext => ({
   id: parseAppId("app_1"),
@@ -20,16 +20,12 @@ const appCtx = (shareMode: "google" | "link"): AppContext => ({
 
 const resolver = (over: Partial<ShareResolver> = {}): ShareResolver => ({
   validateLinkToken: async () => ({ kind: "invalid" }),
+  validateAppSession: async () => null,
   recordAccess: async () => {},
   ...over,
 });
 
-const noSession: SessionReader = { getSession: async () => null };
-const ownerSession: SessionReader = {
-  getSession: async () => ({ user: { id: "u1", email: "a@b.co", name: "A" } }),
-};
-
-const build = (tenant: Tenant, r: ShareResolver, session: SessionReader) =>
+const build = (tenant: Tenant, r: ShareResolver) =>
   new Hono<{ Variables: TenantVariables & ViewerVariables }>()
     .use("*", (c, next) => {
       c.set("tenant", tenant);
@@ -39,9 +35,7 @@ const build = (tenant: Tenant, r: ShareResolver, session: SessionReader) =>
       "*",
       createShareGate({
         resolver: r,
-        session,
         apexBaseUrl: "https://quick.example.com",
-        signInPath: "/sign-in",
         secureCookies: true,
       }),
     )
@@ -49,34 +43,53 @@ const build = (tenant: Tenant, r: ShareResolver, session: SessionReader) =>
 
 describe("share gate", () => {
   test("apex is a no-op", async () => {
-    const res = await build({ kind: "apex" }, resolver(), noSession).request(
+    const res = await build({ kind: "apex" }, resolver()).request(
       "https://acme.quick.example.com/",
     );
     expect(res.status).toBe(200);
   });
 
-  test("google mode without a session redirects to apex sign-in with ?next", async () => {
-    const res = await build({ kind: "app", app: appCtx("google") }, resolver(), noSession).request(
-      "https://acme.quick.example.com/dash",
+  test("google mode without an app session redirects to the apex /sso/grant with ?app and ?next", async () => {
+    const res = await build({ kind: "app", app: appCtx("google") }, resolver()).request(
+      "https://acme.quick.example.com/dash?x=1",
     );
     expect(res.status).toBe(302);
     const loc = res.headers.get("location") ?? "";
-    expect(loc.startsWith("https://quick.example.com/sign-in?next=")).toBe(true);
-    expect(decodeURIComponent(loc)).toContain("https://acme.quick.example.com/dash");
+    expect(loc.startsWith("https://quick.example.com/sso/grant?")).toBe(true);
+    expect(loc).toContain(`app=${encodeURIComponent("acme.quick.example.com")}`);
+    expect(decodeURIComponent(loc)).toContain("next=/dash?x=1");
   });
 
-  test("google mode with a Better Auth session admits the request", async () => {
-    const res = await build(
-      { kind: "app", app: appCtx("google") },
-      resolver(),
-      ownerSession,
-    ).request("https://acme.quick.example.com/");
+  test("google mode with a valid app session admits the request and builds a user viewer", async () => {
+    let seenAppId = "";
+    const r = resolver({
+      validateAppSession: async (appId) => {
+        seenAppId = appId;
+        return { userId: "u1", email: "a@b.co", name: "A" };
+      },
+    });
+    const res = await build({ kind: "app", app: appCtx("google") }, r).request(
+      "https://acme.quick.example.com/",
+      { headers: { cookie: `${APP_SESSION_COOKIE}=tok` } },
+    );
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("APP");
+    expect(seenAppId).toBe("app_1");
+  });
+
+  test("google mode with a stale/invalid app session cookie redirects to grant (does not admit)", async () => {
+    const res = await build(
+      { kind: "app", app: appCtx("google") },
+      resolver({ validateAppSession: async () => null }),
+    ).request("https://acme.quick.example.com/", {
+      headers: { cookie: `${APP_SESSION_COOKIE}=stale` },
+    });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location") ?? "").toContain("/sso/grant");
   });
 
   test("link mode without a token shows the link page (403)", async () => {
-    const res = await build({ kind: "app", app: appCtx("link") }, resolver(), noSession).request(
+    const res = await build({ kind: "app", app: appCtx("link") }, resolver()).request(
       "https://acme.quick.example.com/",
     );
     expect(res.status).toBe(403);
@@ -90,7 +103,7 @@ describe("share gate", () => {
         expiresAt: Date.now() + 3_600_000,
       }),
     });
-    const res = await build({ kind: "app", app: appCtx("link") }, r, noSession).request(
+    const res = await build({ kind: "app", app: appCtx("link") }, r).request(
       "https://acme.quick.example.com/page?t=secret",
     );
     expect(res.status).toBe(302);
@@ -108,7 +121,7 @@ describe("share gate", () => {
         expiresAt: Date.now() + 3_600_000,
       }),
     });
-    const res = await build({ kind: "app", app: appCtx("link") }, r, noSession).request(
+    const res = await build({ kind: "app", app: appCtx("link") }, r).request(
       "https://acme.quick.example.com/",
       { headers: { cookie: `${LINK_COOKIE}=secret` } },
     );
@@ -117,7 +130,7 @@ describe("share gate", () => {
 
   test("link mode with an expired token is denied", async () => {
     const r = resolver({ validateLinkToken: async () => ({ kind: "expired" }) });
-    const res = await build({ kind: "app", app: appCtx("link") }, r, noSession).request(
+    const res = await build({ kind: "app", app: appCtx("link") }, r).request(
       "https://acme.quick.example.com/?t=x",
     );
     expect(res.status).toBe(403);

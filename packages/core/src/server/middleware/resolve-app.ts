@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import { isReservedSlug, parseSubdomain } from "../../shared/index.ts";
+import { isUsableSlug, parseSubdomain } from "../../shared/index.ts";
 import { notFoundAppPage } from "../html.ts";
 import type { AppRegistry, TenantVariables } from "../tenant.ts";
 
@@ -9,7 +9,9 @@ import type { AppRegistry, TenantVariables } from "../tenant.ts";
 export const createResolveApp = (deps: { rootDomain: string; registry: AppRegistry }) =>
   createMiddleware<{ Variables: TenantVariables }>(async (c, next) => {
     const sub = parseSubdomain(c.req.header("host") ?? "", deps.rootDomain);
-    if (sub.kind === "apex" || isReservedSlug(sub.label)) {
+    // Reserved AND malformed labels resolve to the apex; only a usable slug is ever
+    // looked up as a tenant (same validity gate the create API uses).
+    if (sub.kind === "apex" || !isUsableSlug(sub.label)) {
       c.set("tenant", { kind: "apex" });
       return next();
     }

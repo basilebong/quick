@@ -6,6 +6,7 @@ import {
   parseUserId,
 } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import type * as v from "valibot";
 import { safeParse } from "valibot";
 import {
@@ -17,11 +18,14 @@ import {
   UpdateAppInputSchema,
   hostingErrorStatus,
 } from "../shared/index.ts";
-import type { DeployFile } from "./deploy.ts";
+import { DEPLOY_MAX_TOTAL_BYTES, type DeployFile } from "./deploy.ts";
 import type { OwnerVariables } from "./owner-auth.ts";
 import type { HostingService } from "./service.ts";
 
 type Ctx = { Variables: OwnerVariables };
+
+// Reject before the body is buffered and base64-decoded. base64 inflates ~1.37x.
+const DEPLOY_BODY_LIMIT = Math.ceil(DEPLOY_MAX_TOTAL_BYTES * 1.4);
 
 const readBody = async <S extends v.GenericSchema>(
   c: Context,
@@ -69,7 +73,7 @@ export const createHostingRoutes = (deps: { service: HostingService }) =>
     .get("/:appId/deployments", async (c) =>
       c.json({ deployments: await deps.service.listDeployments(parseAppId(c.req.param("appId"))) }),
     )
-    .post("/:appId/deployments", async (c) => {
+    .post("/:appId/deployments", bodyLimit({ maxSize: DEPLOY_BODY_LIMIT }), async (c) => {
       const body = await readBody(c, DeployInputSchema);
       if (!body.ok) return badBody(c);
       const files: DeployFile[] = body.value.files.map((f) => ({

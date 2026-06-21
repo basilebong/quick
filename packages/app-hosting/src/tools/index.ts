@@ -107,6 +107,15 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       const app = await service.findBySlug(slug);
       if (app === null) return errorResult({ kind: "not_found" });
       const links = await service.listLinks(app.id);
+      await safely(
+        "audit",
+        audit.record({
+          userId: actor,
+          action: "quick__list_share_links",
+          via: "mcp",
+          metadata: { slug, count: links.length },
+        }),
+      );
       return {
         content: [{ type: "text" as const, text: `${links.length} link(s) for ${slug}.` }],
         structuredContent: { links },

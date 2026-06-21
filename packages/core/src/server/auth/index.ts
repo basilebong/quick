@@ -20,7 +20,6 @@ export type CreateAuthOptions = {
 };
 
 export const createAuth = (opts: CreateAuthOptions) => {
-  const rootDomain = new URL(opts.baseURL).hostname;
   const plugins: BetterAuthPlugin[] = [
     jwt(),
     oauthProvider({
@@ -40,9 +39,10 @@ export const createAuth = (opts: CreateAuthOptions) => {
     baseURL: opts.baseURL,
     secret: opts.secret,
 
-    // Allow the apex sign-in to redirect back to any app subdomain (the google
-    // share-mode handoff uses callbackURL = the app's URL).
-    trustedOrigins: [opts.baseURL, `https://*.${rootDomain}`, `http://*.${rootDomain}`],
+    // Apex only. Tenant subdomains serve untrusted code and are same-site, so they
+    // must NOT be trusted origins (that would defeat Better Auth's CSRF check on
+    // /api/auth/*). The google handoff returns through an apex-path callbackURL.
+    trustedOrigins: [opts.baseURL],
 
     database: drizzleAdapter(opts.db, {
       provider: "sqlite",
@@ -66,10 +66,10 @@ export const createAuth = (opts: CreateAuthOptions) => {
     advanced: {
       cookiePrefix: "Quick",
       useSecureCookies: opts.useSecureCookies,
-      // One Better Auth session, valid across the apex and every app subdomain —
-      // sign in once. Cross-app /_api access is fenced off by the Sec-Fetch-Site
-      // check (see middleware/origin-check.ts), not by cookie scoping.
-      crossSubDomainCookies: { enabled: true },
+      // HOST-ONLY: no crossSubDomainCookies. The apex session cookie must never
+      // carry a Domain attribute, so it is never sent to a tenant subdomain. Cross-
+      // subdomain google access goes through the apex one-time-code handoff
+      // (/sso/grant -> /sso/callback), which sets a host-only quick_app_sess.
     },
 
     plugins,
