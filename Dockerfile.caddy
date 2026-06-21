@@ -1,0 +1,10 @@
+# syntax=docker/dockerfile:1.7
+# Caddy with the Hetzner DNS plugin, required for the DNS-01 ACME challenge that
+# issues the *.${QUICK_DOMAIN} wildcard certificate (HTTP-01 cannot do wildcards).
+# Swap the caddy-dns module if your DNS is hosted elsewhere (caddy-dns/cloudflare,
+# caddy-dns/route53, …) and update the tls directive in the Caddyfile to match.
+FROM caddy:2-builder-alpine AS build
+RUN xcaddy build --with github.com/caddy-dns/hetzner
+
+FROM caddy:2-alpine
+COPY --from=build /usr/bin/caddy /usr/bin/caddy

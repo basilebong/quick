@@ -1,0 +1,50 @@
+import { isUsableSlug } from "@quick/core/shared";
+import * as v from "valibot";
+
+export const ShareModeSchema = v.picklist(["google", "link"]);
+
+export const AppNameSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(80));
+
+export const SlugSchema = v.pipe(
+  v.string(),
+  v.check(isUsableSlug, "Slug must be a valid, non-reserved DNS label"),
+);
+
+export const LabelSchema = v.optional(v.pipe(v.string(), v.trim(), v.maxLength(80)), "");
+
+export const CreateAppInputSchema = v.object({
+  slug: SlugSchema,
+  name: AppNameSchema,
+  shareMode: ShareModeSchema,
+});
+export type CreateAppInput = v.InferOutput<typeof CreateAppInputSchema>;
+
+export const UpdateAppInputSchema = v.pipe(
+  v.object({
+    name: v.optional(AppNameSchema),
+    shareMode: v.optional(ShareModeSchema),
+  }),
+  v.check(
+    (i) => i.name !== undefined || i.shareMode !== undefined,
+    "Provide a name or shareMode to update",
+  ),
+);
+export type UpdateAppInput = v.InferOutput<typeof UpdateAppInputSchema>;
+
+export const CreateLinkInputSchema = v.object({
+  label: LabelSchema,
+  expiresAt: v.pipe(v.number(), v.integer(), v.minValue(1)),
+});
+export type CreateLinkInput = v.InferOutput<typeof CreateLinkInputSchema>;
+
+export const CreateTokenInputSchema = v.object({ label: LabelSchema });
+export type CreateTokenInput = v.InferOutput<typeof CreateTokenInputSchema>;
+
+// A deploy uploads each file as base64 (`content`) keyed by its relative path.
+// Simple, dependency-free, and there is no archive extraction to attack.
+export const DeployFileSchema = v.object({
+  path: v.pipe(v.string(), v.minLength(1)),
+  content: v.string(),
+});
+export const DeployInputSchema = v.object({ files: v.array(DeployFileSchema) });
+export type DeployInput = v.InferOutput<typeof DeployInputSchema>;

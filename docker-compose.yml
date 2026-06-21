@@ -1,0 +1,97 @@
+services:
+  app:
+    profiles: [prod]
+    image: ghcr.io/basilebong/quick:latest
+    build:
+      context: .
+      target: runtime
+    restart: always
+    volumes:
+      - ./data:/data
+    env_file: .env
+    expose:
+      - "3000"
+
+  caddy:
+    profiles: [prod]
+    image: ghcr.io/basilebong/quick-caddy:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - QUICK_DOMAIN=${QUICK_DOMAIN}
+      - ACME_EMAIL=${ACME_EMAIL}
+      - HETZNER_DNS_API_TOKEN=${HETZNER_DNS_API_TOKEN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  # Replicates the SQLite db (including inline file BLOBs) to object storage.
+  litestream:
+    profiles: [prod]
+    image: litestream/litestream:0.3.13
+    restart: always
+    volumes:
+      - ./data:/data
+      - ./litestream.yml:/etc/litestream.yml:ro
+    environment:
+      - LITESTREAM_ACCESS_KEY_ID=${STORAGE_BOX_KEY}
+      - LITESTREAM_SECRET_ACCESS_KEY=${STORAGE_BOX_SECRET}
+    command: replicate
+
+  # Litestream only covers the db; deployed bundles + uploaded files live under
+  # /data/apps, so back them up daily with restic (encrypted, deduped).
+  apps-backup:
+    profiles: [prod]
+    image: restic/restic:0.17.3
+    restart: always
+    volumes:
+      - ./data:/data:ro
+    environment:
+      - RESTIC_REPOSITORY=${RESTIC_REPOSITORY}
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${STORAGE_BOX_KEY}
+      - AWS_SECRET_ACCESS_KEY=${STORAGE_BOX_SECRET}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        restic snapshots >/dev/null 2>&1 || restic init;
+        while true; do
+          restic backup /data/apps --tag apps --host quick || true;
+          restic forget --keep-daily 30 --prune || true;
+          sleep 86400;
+        done
+
+  dev:
+    profiles: [dev]
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./data:/data
+    environment:
+      - BETTER_AUTH_URL=http://localhost:5173
+      - BETTER_AUTH_SECRET=dev-only-secret-min-32-chars-padded
+      - GOOGLE_ID=${GOOGLE_ID}
+      - GOOGLE_SECRET=${GOOGLE_SECRET}
+      - QUICK_ALLOWED_EMAILS=${QUICK_ALLOWED_EMAILS}
+      - MCP_HOST=localhost
+    stdin_open: true
+    tty: true
+
+volumes:
+  caddy_data:
+  caddy_config:

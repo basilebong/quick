@@ -1,0 +1,15 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome (format + lint, staged only, auto-fix)
+      glob: "*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc,css}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+
+    - name: check-source (no-bare-as, sorted-exports)
+      glob: "*.{ts,tsx}"
+      run: bun ./scripts/check-source.ts {staged_files}
+
+    - name: typecheck (whole project — types are cross-file)
+      glob: "*.{ts,tsx}"
+      run: pnpm exec tsc -b --noEmit

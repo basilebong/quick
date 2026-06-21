@@ -1,0 +1,21 @@
+{
+  "name": "@quick/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Elastic-2.0",
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "typecheck": "tsc -b",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@quick/app-files": "workspace:*",
+    "@quick/app-hosting": "workspace:*",
+    "@quick/app-store": "workspace:*",
+    "@quick/core": "workspace:*",
+    "hono": "4.12.26"
+  },
+  "devDependencies": {}
+}
