@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { parseAppId, parseAppSlug, parseShareLinkId } from "../../shared/index.ts";
 import { APP_SESSION_COOKIE, signAppSession } from "../app-session.ts";
-import type { AppContext, ShareResolver, Tenant, TenantVariables, ViewerVariables } from "../tenant.ts";
+import type {
+  AppContext,
+  ShareResolver,
+  Tenant,
+  TenantVariables,
+  ViewerVariables,
+} from "../tenant.ts";
 import { createShareGate } from "./share-gate.ts";
 
 const SECRET = "test-secret-at-least-32-chars-long-xx";
@@ -40,7 +46,9 @@ const build = (tenant: Tenant, r: ShareResolver) =>
 
 describe("share gate", () => {
   test("apex is a no-op (dashboard continues)", async () => {
-    const res = await build({ kind: "apex" }, resolver()).request("https://acme.quick.example.com/");
+    const res = await build({ kind: "apex" }, resolver()).request(
+      "https://acme.quick.example.com/",
+    );
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("APP");
   });

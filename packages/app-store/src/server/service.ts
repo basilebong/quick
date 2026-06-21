@@ -9,7 +9,12 @@ import {
   parseAppRecordId,
 } from "@quick/core/shared";
 import { ulid } from "ulid";
-import { type AppRecord, MAX_RECORD_BYTES, type StoreError, isValidCollection } from "../shared/index.ts";
+import {
+  type AppRecord,
+  MAX_RECORD_BYTES,
+  type StoreError,
+  isValidCollection,
+} from "../shared/index.ts";
 import { appRecords } from "./schema.ts";
 import { rowToRecord } from "./serialize.ts";
 
@@ -103,7 +108,11 @@ export const createStoreService = (db: Db): StoreService => ({
       .select()
       .from(appRecords)
       .where(
-        and(eq(appRecords.appId, appId), eq(appRecords.collection, collection), eq(appRecords.id, id)),
+        and(
+          eq(appRecords.appId, appId),
+          eq(appRecords.collection, collection),
+          eq(appRecords.id, id),
+        ),
       )
       .limit(1);
     const row = rows[0];
@@ -118,7 +127,11 @@ export const createStoreService = (db: Db): StoreService => ({
       .update(appRecords)
       .set({ dataJson: JSON.stringify(data), updatedAt: new Date() })
       .where(
-        and(eq(appRecords.appId, appId), eq(appRecords.collection, collection), eq(appRecords.id, id)),
+        and(
+          eq(appRecords.appId, appId),
+          eq(appRecords.collection, collection),
+          eq(appRecords.id, id),
+        ),
       )
       .returning();
     const row = updated[0];
@@ -134,7 +147,11 @@ export const createStoreService = (db: Db): StoreService => ({
       .select()
       .from(appRecords)
       .where(
-        and(eq(appRecords.appId, appId), eq(appRecords.collection, collection), eq(appRecords.id, id)),
+        and(
+          eq(appRecords.appId, appId),
+          eq(appRecords.collection, collection),
+          eq(appRecords.id, id),
+        ),
       )
       .limit(1);
     const row = rows[0];
@@ -157,7 +174,11 @@ export const createStoreService = (db: Db): StoreService => ({
     const deleted = await db
       .delete(appRecords)
       .where(
-        and(eq(appRecords.appId, appId), eq(appRecords.collection, collection), eq(appRecords.id, id)),
+        and(
+          eq(appRecords.appId, appId),
+          eq(appRecords.collection, collection),
+          eq(appRecords.id, id),
+        ),
       )
       .returning({ id: appRecords.id });
     const row = deleted[0];

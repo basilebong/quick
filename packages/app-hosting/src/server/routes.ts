@@ -39,7 +39,8 @@ const readBody = async <S extends v.GenericSchema>(
 
 const actorOf = (c: Context<Ctx>) => parseUserId(c.var.user.id);
 const fail = (c: Context, e: HostingError) => c.json(e, hostingErrorStatus(e));
-const badBody = (c: Context) => c.json({ kind: "invalid_input", message: "invalid request body" }, 400);
+const badBody = (c: Context) =>
+  c.json({ kind: "invalid_input", message: "invalid request body" }, 400);
 
 // Mounted at /api/apps on the apex, behind createOwnerAuth.
 export const createHostingRoutes = (deps: { service: HostingService }) =>
@@ -95,7 +96,11 @@ export const createHostingRoutes = (deps: { service: HostingService }) =>
     .post("/:appId/links", async (c) => {
       const body = await readBody(c, CreateLinkInputSchema);
       if (!body.ok) return badBody(c);
-      const r = await deps.service.createLink(parseAppId(c.req.param("appId")), body.value, actorOf(c));
+      const r = await deps.service.createLink(
+        parseAppId(c.req.param("appId")),
+        body.value,
+        actorOf(c),
+      );
       return r.kind === "ok" ? c.json(r.value, 201) : fail(c, r.error);
     })
     .delete("/:appId/links/:linkId", async (c) => {
@@ -120,7 +125,10 @@ export const createTokenRoutes = (deps: { service: HostingService }) =>
       return r.kind === "ok" ? c.json(r.value, 201) : fail(c, r.error);
     })
     .delete("/:tokenId", async (c) => {
-      const r = await deps.service.revokeToken(actorOf(c), parseAccessTokenId(c.req.param("tokenId")));
+      const r = await deps.service.revokeToken(
+        actorOf(c),
+        parseAccessTokenId(c.req.param("tokenId")),
+      );
       return r.kind === "ok" ? c.json({ id: r.value.id }) : fail(c, r.error);
     });
 

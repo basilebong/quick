@@ -41,7 +41,9 @@ export const createFilesAppRoutes = (deps: { service: FilesService }) =>
         bytes,
         by,
       );
-      return r.kind === "ok" ? c.json({ file: r.value }, 201) : c.json(r.error, filesErrorStatus(r.error));
+      return r.kind === "ok"
+        ? c.json({ file: r.value }, 201)
+        : c.json(r.error, filesErrorStatus(r.error));
     })
     .get("/:filepath{.+}", async (c) => {
       const r = await deps.service.get(appIdOf(c), c.req.param("filepath"));
@@ -52,19 +54,29 @@ export const createFilesAppRoutes = (deps: { service: FilesService }) =>
     })
     .delete("/:filepath{.+}", async (c) => {
       const r = await deps.service.remove(appIdOf(c), c.req.param("filepath"));
-      return r.kind === "ok" ? c.json({ path: r.value.path }) : c.json(r.error, filesErrorStatus(r.error));
+      return r.kind === "ok"
+        ? c.json({ path: r.value.path })
+        : c.json(r.error, filesErrorStatus(r.error));
     });
 
 // Mounted at /api/apps/:appId/files on the apex (owner-gated by composition).
 export const createFilesAdminRoutes = (deps: { service: FilesService }) =>
   new Hono()
     .get("/", async (c) => {
-      const files = await deps.service.list(parseAppId(c.req.param("appId")), c.req.query("prefix"));
+      const files = await deps.service.list(
+        parseAppId(c.req.param("appId")),
+        c.req.query("prefix"),
+      );
       return c.json({ files });
     })
     .delete("/:filepath{.+}", async (c) => {
-      const r = await deps.service.remove(parseAppId(c.req.param("appId")), c.req.param("filepath"));
-      return r.kind === "ok" ? c.json({ path: r.value.path }) : c.json(r.error, filesErrorStatus(r.error));
+      const r = await deps.service.remove(
+        parseAppId(c.req.param("appId")),
+        c.req.param("filepath"),
+      );
+      return r.kind === "ok"
+        ? c.json({ path: r.value.path })
+        : c.json(r.error, filesErrorStatus(r.error));
     });
 
 export type FilesAppRoutes = ReturnType<typeof createFilesAppRoutes>;

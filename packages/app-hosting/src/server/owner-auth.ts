@@ -15,7 +15,7 @@ export const createOwnerAuth = (deps: {
 }) =>
   createMiddleware<{ Variables: OwnerVariables }>(async (c, next) => {
     const authz = c.req.header("authorization");
-    if (authz !== undefined && authz.startsWith("Bearer ")) {
+    if (authz?.startsWith("Bearer ")) {
       const owner = await deps.service.verifyAccessToken(authz.slice("Bearer ".length));
       if (owner === null) return c.json({ error: "unauthorized" }, 401);
       c.set("user", { id: owner.userId, email: owner.email, name: owner.name });

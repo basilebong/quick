@@ -43,7 +43,8 @@ export const parseAccessLogId = (raw: unknown): AccessLogId => v.parse(AccessLog
 
 export const AccessTokenIdSchema = v.pipe(v.string(), v.minLength(1), v.brand("AccessTokenId"));
 export type AccessTokenId = v.InferOutput<typeof AccessTokenIdSchema>;
-export const parseAccessTokenId = (raw: unknown): AccessTokenId => v.parse(AccessTokenIdSchema, raw);
+export const parseAccessTokenId = (raw: unknown): AccessTokenId =>
+  v.parse(AccessTokenIdSchema, raw);
 
 export const SsoCodeIdSchema = v.pipe(v.string(), v.minLength(1), v.brand("SsoCodeId"));
 export type SsoCodeId = v.InferOutput<typeof SsoCodeIdSchema>;

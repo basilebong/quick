@@ -100,7 +100,10 @@ export const createApp = (o: ComposeOptions) => {
       }),
     )
     .use("/api/*", cors({ origin: o.baseURL, credentials: true }))
-    .use("/api/*", createOwnerAuth({ auth: o.auth, allowedEmails: o.allowedEmails, service: o.hosting }))
+    .use(
+      "/api/*",
+      createOwnerAuth({ auth: o.auth, allowedEmails: o.allowedEmails, service: o.hosting }),
+    )
     .use("/api/*", createIdempotency(o.db))
     .get("/api/me", (c) => c.json({ user: c.var.user }))
     .route("/api/apps/:appId/records", createStoreAdminRoutes({ service: o.store }))

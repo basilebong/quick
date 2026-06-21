@@ -7,7 +7,13 @@ import type {
   Deployment,
   ShareLinkView,
 } from "../shared/index.ts";
-import type { AccessLogRow, AccessTokenRow, AppRow, DeploymentRow, ShareLinkRow } from "./schema.ts";
+import type {
+  AccessLogRow,
+  AccessTokenRow,
+  AppRow,
+  DeploymentRow,
+  ShareLinkRow,
+} from "./schema.ts";
 
 const shareModeOf = (raw: string): ShareMode => (raw === "link" ? "link" : "google");
 

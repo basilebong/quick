@@ -1,11 +1,17 @@
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Db } from "@quick/core/server";
-import { createTestDb } from "@quick/core/server/test";
 import { users } from "@quick/core/server/schema";
-import { type UserId, parseAppId, parseDeploymentId, parseShareLinkId, parseUserId } from "@quick/core/shared";
+import { createTestDb } from "@quick/core/server/test";
+import {
+  type UserId,
+  parseAppId,
+  parseDeploymentId,
+  parseShareLinkId,
+  parseUserId,
+} from "@quick/core/shared";
 import { type HostingService, createHostingService } from "./service.ts";
 
 let db: Db;
@@ -55,7 +61,11 @@ describe("hosting service", () => {
     const noIndex = await service.createDeployment(appId, [file("x.txt", "x")], owner);
     expect(noIndex.kind === "err" && noIndex.error.kind).toBe("invalid_input");
 
-    const d1 = await service.createDeployment(appId, [file("index.html", "v1"), file("a/b.txt", "x")], owner);
+    const d1 = await service.createDeployment(
+      appId,
+      [file("index.html", "v1"), file("a/b.txt", "x")],
+      owner,
+    );
     if (d1.kind !== "ok") throw new Error("deploy 1 failed");
     expect(d1.value.version).toBe(1);
     expect(d1.value.fileCount).toBe(2);
@@ -71,19 +81,29 @@ describe("hosting service", () => {
 
     await service.activateDeployment(appId, parseDeploymentId(d1.value.id));
     const afterRollback = await service.getApp(appId);
-    expect(afterRollback.kind === "ok" && afterRollback.value.currentDeploymentId).toBe(d1.value.id);
+    expect(afterRollback.kind === "ok" && afterRollback.value.currentDeploymentId).toBe(
+      d1.value.id,
+    );
   });
 
   test("share links: validate, expire, revoke", async () => {
     const app = await newApp("acme");
     const appId = parseAppId(app.id);
 
-    const live = await service.createLink(appId, { label: "client", expiresAt: Date.now() + 3_600_000 }, owner);
+    const live = await service.createLink(
+      appId,
+      { label: "client", expiresAt: Date.now() + 3_600_000 },
+      owner,
+    );
     if (live.kind !== "ok") throw new Error("createLink failed");
     expect((await service.validateLinkToken(appId, live.value.token)).kind).toBe("valid");
     expect((await service.validateLinkToken(appId, "wrong-token")).kind).toBe("invalid");
 
-    const expired = await service.createLink(appId, { label: "old", expiresAt: Date.now() - 1_000 }, owner);
+    const expired = await service.createLink(
+      appId,
+      { label: "old", expiresAt: Date.now() - 1_000 },
+      owner,
+    );
     if (expired.kind !== "ok") throw new Error("createLink expired failed");
     expect((await service.validateLinkToken(appId, expired.value.token)).kind).toBe("expired");
 

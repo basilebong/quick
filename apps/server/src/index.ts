@@ -51,7 +51,11 @@ const ssoCodes = createSsoCodeStore(db);
 const appUrl = (slug: string): string => `${apexUrl.protocol}//${slug}.${apexUrl.host}`;
 
 const isOwner = async (actor: UserId): Promise<boolean> => {
-  const rows = await db.select({ email: users.email }).from(users).where(eq(users.id, actor)).limit(1);
+  const rows = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, actor))
+    .limit(1);
   const email = rows[0]?.email;
   return email !== undefined && isAllowedEmail(allowedEmails, email);
 };

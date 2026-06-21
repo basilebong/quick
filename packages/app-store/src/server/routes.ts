@@ -21,7 +21,9 @@ const readJson = async (c: Context): Promise<{ ok: true; data: unknown } | { ok:
 };
 
 const respond = (c: Context, r: Result<AppRecord, StoreError>, okStatus: 200 | 201 = 200) =>
-  r.kind === "ok" ? c.json({ record: r.value }, okStatus) : c.json(r.error, storeErrorStatus(r.error));
+  r.kind === "ok"
+    ? c.json({ record: r.value }, okStatus)
+    : c.json(r.error, storeErrorStatus(r.error));
 
 // Mounted at /_api/db on each tenant host, behind the share gate + origin check.
 export const createStoreAppRoutes = (deps: { service: StoreService }) =>
@@ -35,7 +37,11 @@ export const createStoreAppRoutes = (deps: { service: StoreService }) =>
     .post("/:collection", async (c) => {
       const body = await readJson(c);
       if (!body.ok) return c.json({ kind: "invalid_input", message: "invalid JSON body" }, 400);
-      return respond(c, await deps.service.create(appIdOf(c), c.req.param("collection"), body.data), 201);
+      return respond(
+        c,
+        await deps.service.create(appIdOf(c), c.req.param("collection"), body.data),
+        201,
+      );
     })
     .get("/:collection/:id", async (c) => {
       const r = await deps.service.get(

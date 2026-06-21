@@ -76,7 +76,10 @@ export const createSsoCallback =
     setCookie(
       c,
       APP_SESSION_COOKIE,
-      signAppSession({ appId: tenant.app.id, viewer, exp: Date.now() + APP_SESSION_TTL_MS }, deps.secret),
+      signAppSession(
+        { appId: tenant.app.id, viewer, exp: Date.now() + APP_SESSION_TTL_MS },
+        deps.secret,
+      ),
       { httpOnly: true, secure: deps.secureCookies, sameSite: "Lax", path: "/" },
     );
     await deps.resolver.recordAccess({

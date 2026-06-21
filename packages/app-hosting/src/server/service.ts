@@ -86,7 +86,10 @@ export type HostingService = {
     ownerId: UserId,
     label: string,
   ): Promise<Result<{ token: string; view: AccessTokenView }, HostingError>>;
-  revokeToken(ownerId: UserId, tokenId: AccessTokenId): Promise<Result<{ id: string }, HostingError>>;
+  revokeToken(
+    ownerId: UserId,
+    tokenId: AccessTokenId,
+  ): Promise<Result<{ id: string }, HostingError>>;
   verifyAccessToken(
     rawToken: string,
   ): Promise<{ userId: UserId; email: string; name: string } | null>;
@@ -175,7 +178,11 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
       if (!isUsableSlug(input.slug)) {
         return err({ kind: "invalid_input", message: "invalid or reserved slug" });
       }
-      const existing = await db.select({ id: apps.id }).from(apps).where(eq(apps.slug, input.slug)).limit(1);
+      const existing = await db
+        .select({ id: apps.id })
+        .from(apps)
+        .where(eq(apps.slug, input.slug))
+        .limit(1);
       if (existing[0] !== undefined) {
         return err({ kind: "conflict", message: `slug "${input.slug}" is already taken` });
       }
@@ -264,7 +271,10 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         .returning();
       const row = inserted[0];
       if (row === undefined) return err({ kind: "not_found" });
-      await db.update(apps).set({ currentDeploymentId: deploymentId, updatedAt: now }).where(eq(apps.id, appId));
+      await db
+        .update(apps)
+        .set({ currentDeploymentId: deploymentId, updatedAt: now })
+        .where(eq(apps.id, appId));
       return ok(rowToDeployment(row));
     },
 
@@ -391,7 +401,10 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         .limit(1);
       const owner = ownerRows[0];
       if (owner === undefined) return null;
-      await db.update(accessTokens).set({ lastUsedAt: new Date() }).where(eq(accessTokens.id, row.id));
+      await db
+        .update(accessTokens)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(accessTokens.id, row.id));
       return { userId: parseUserId(owner.id), email: owner.email, name: owner.name };
     },
   };

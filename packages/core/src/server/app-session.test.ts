@@ -32,7 +32,9 @@ describe("app session capability", () => {
 
   test("rejects a wrong secret (cannot be forged)", () => {
     const token = signAppSession({ ...base, exp: Date.now() + 60_000 }, secret);
-    expect(verifyAppSession(token, "another-secret-at-least-32-chars-xxxxx", Date.now())).toBeNull();
+    expect(
+      verifyAppSession(token, "another-secret-at-least-32-chars-xxxxx", Date.now()),
+    ).toBeNull();
   });
 
   test("rejects an expired token", () => {

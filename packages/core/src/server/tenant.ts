@@ -1,4 +1,11 @@
-import type { AppId, AppSlug, DeploymentId, ShareLinkId, ShareMode, Viewer } from "../shared/index.ts";
+import type {
+  AppId,
+  AppSlug,
+  DeploymentId,
+  ShareLinkId,
+  ShareMode,
+  Viewer,
+} from "../shared/index.ts";
 
 // The resolved tenant app for a request to `<slug>.<rootDomain>`.
 export type AppContext = {

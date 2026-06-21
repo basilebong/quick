@@ -81,20 +81,20 @@ const writeConfig = (config: Config): void => {
   writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`);
 };
 
-type Args = { positional: string[]; flags: Record<string, string> };
+type Args = { positional: string[]; flags: Map<string, string> };
 
 const parseArgs = (argv: string[]): Args => {
   const positional: string[] = [];
-  const flags: Record<string, string> = {};
+  const flags = new Map<string, string>();
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i] ?? "";
     if (a.startsWith("--")) {
       const next = argv[i + 1];
       if (next !== undefined && !next.startsWith("--")) {
-        flags[a.slice(2)] = next;
+        flags.set(a.slice(2), next);
         i += 1;
       } else {
-        flags[a.slice(2)] = "true";
+        flags.set(a.slice(2), "true");
       }
     } else {
       positional.push(a);
@@ -178,8 +178,8 @@ const ensureApp = async (config: Config, slug: string, shareMode: string): Promi
 };
 
 const cmdLogin = (args: Args): void => {
-  const baseURL = args.flags["url"];
-  const token = args.flags["token"];
+  const baseURL = args.flags.get("url");
+  const token = args.flags.get("token");
   if (baseURL === undefined || token === undefined) {
     return void fail("usage: quick login --url <apex-url> --token <pat>");
   }
@@ -188,9 +188,9 @@ const cmdLogin = (args: Args): void => {
 };
 
 const cmdInit = (args: Args): void => {
-  const slug = args.flags["slug"];
+  const slug = args.flags.get("slug");
   if (slug === undefined) return void fail("usage: quick init --slug <slug> [--mode google|link]");
-  const config = v.parse(QuickJsonSchema, { slug, shareMode: args.flags["mode"] ?? "google" });
+  const config = v.parse(QuickJsonSchema, { slug, shareMode: args.flags.get("mode") ?? "google" });
   writeFileSync("quick.json", `${JSON.stringify(config, null, 2)}\n`);
   console.log(`Wrote quick.json (slug=${config.slug}, mode=${config.shareMode})`);
 };
@@ -248,7 +248,7 @@ const cmdDelete = async (config: Config, slug: string): Promise<void> => {
 
 const cmdLinkCreate = async (config: Config, slug: string, args: Args): Promise<void> => {
   const app = await requireApp(config, slug);
-  const expires = args.flags["expires"];
+  const expires = args.flags.get("expires");
   if (expires === undefined) {
     return void fail("usage: quick link create <slug> --expires <ISO-8601> [--label <text>]");
   }
@@ -257,7 +257,7 @@ const cmdLinkCreate = async (config: Config, slug: string, args: Args): Promise<
   const { link, token } = v.parse(
     CreateLinkResponse,
     await request(config, "POST", `/api/apps/${app.id}/links`, {
-      label: args.flags["label"] ?? "",
+      label: args.flags.get("label") ?? "",
       expiresAt,
     }),
   );
@@ -317,7 +317,9 @@ const main = async (): Promise<void> => {
     case "list":
       return cmdList(config);
     case "deployments":
-      return a === undefined ? void fail("usage: quick deployments <slug>") : cmdDeployments(config, a);
+      return a === undefined
+        ? void fail("usage: quick deployments <slug>")
+        : cmdDeployments(config, a);
     case "rollback":
       return a === undefined || b === undefined
         ? void fail("usage: quick rollback <slug> <version>")

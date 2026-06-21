@@ -3,8 +3,8 @@ import type { AuditRecorder } from "@quick/core/server";
 import { type UserId, parseShareLinkId } from "@quick/core/shared";
 import { match } from "ts-pattern";
 import * as z from "zod";
-import type { HostingError } from "../shared/index.ts";
 import type { HostingService } from "../server/index.ts";
+import type { HostingError } from "../shared/index.ts";
 
 // All hosting tools are OWNER-only; mcp.ts only registers them when the MCP
 // caller's identity is on the owner allowlist (any Google account can mint an
@@ -50,7 +50,12 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       const apps = await service.listApps();
       await safely(
         "audit",
-        audit.record({ userId: actor, action: "quick__list_apps", via: "mcp", metadata: { count: apps.length } }),
+        audit.record({
+          userId: actor,
+          action: "quick__list_apps",
+          via: "mcp",
+          metadata: { count: apps.length },
+        }),
       );
       const text =
         apps.length === 0
@@ -64,7 +69,8 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
     "quick__create_app",
     {
       title: "Create app",
-      description: "Register a new app slug with a share mode (it has no deployment until you run `quick deploy`).",
+      description:
+        "Register a new app slug with a share mode (it has no deployment until you run `quick deploy`).",
       inputSchema: {
         slug: z.string().min(1).max(63),
         name: z.string().trim().min(1).max(80),
@@ -76,7 +82,12 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       if (r.kind === "err") return errorResult(r.error);
       await safely(
         "audit",
-        audit.record({ userId: actor, action: "quick__create_app", via: "mcp", metadata: { slug } }),
+        audit.record({
+          userId: actor,
+          action: "quick__create_app",
+          via: "mcp",
+          metadata: { slug },
+        }),
       );
       return {
         content: [{ type: "text" as const, text: `Created app "${slug}" (${shareMode}).` }],
@@ -125,7 +136,12 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       if (r.kind === "err") return errorResult(r.error);
       await safely(
         "audit",
-        audit.record({ userId: actor, action: "quick__create_share_link", via: "mcp", metadata: { slug, linkId: r.value.link.id } }),
+        audit.record({
+          userId: actor,
+          action: "quick__create_share_link",
+          via: "mcp",
+          metadata: { slug, linkId: r.value.link.id },
+        }),
       );
       const url = `${appUrl(slug)}/?t=${r.value.token}`;
       return {
@@ -149,7 +165,12 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       if (r.kind === "err") return errorResult(r.error);
       await safely(
         "audit",
-        audit.record({ userId: actor, action: "quick__revoke_share_link", via: "mcp", metadata: { slug, linkId } }),
+        audit.record({
+          userId: actor,
+          action: "quick__revoke_share_link",
+          via: "mcp",
+          metadata: { slug, linkId },
+        }),
       );
       return {
         content: [{ type: "text" as const, text: `Revoked link ${linkId} for ${slug}.` }],

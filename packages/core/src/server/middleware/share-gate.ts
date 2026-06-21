@@ -1,7 +1,12 @@
 import { getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import type { Viewer } from "../../shared/index.ts";
-import { APP_SESSION_COOKIE, APP_SESSION_TTL_MS, signAppSession, verifyAppSession } from "../app-session.ts";
+import {
+  APP_SESSION_COOKIE,
+  APP_SESSION_TTL_MS,
+  signAppSession,
+  verifyAppSession,
+} from "../app-session.ts";
 import { linkAccessPage } from "../html.ts";
 import type { ShareResolver, TenantVariables, ViewerVariables } from "../tenant.ts";
 
@@ -47,12 +52,17 @@ export const createShareGate = (deps: ShareGateDeps) =>
       if (res.kind === "valid") {
         const viewer: Viewer = { kind: "link", linkId: res.linkId };
         const exp = Math.min(res.expiresAt, now + APP_SESSION_TTL_MS);
-        setCookie(c, APP_SESSION_COOKIE, signAppSession({ appId: app.id, viewer, exp }, deps.secret), {
-          httpOnly: true,
-          secure: deps.secureCookies,
-          sameSite: "Lax",
-          path: "/",
-        });
+        setCookie(
+          c,
+          APP_SESSION_COOKIE,
+          signAppSession({ appId: app.id, viewer, exp }, deps.secret),
+          {
+            httpOnly: true,
+            secure: deps.secureCookies,
+            sameSite: "Lax",
+            path: "/",
+          },
+        );
         await deps.resolver.recordAccess({
           appId: app.id,
           mode: "link",
