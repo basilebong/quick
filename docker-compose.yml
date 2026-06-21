@@ -1,0 +1,65 @@
+services:
+  app:
+    profiles: [prod]
+    build:
+      context: .
+      target: runtime
+    image: quick:latest
+    restart: always
+    volumes:
+      - ./data:/data
+    env_file: .env
+    expose:
+      - "3000"
+
+  caddy:
+    profiles: [prod]
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  litestream:
+    profiles: [prod]
+    image: litestream/litestream:0.3.13
+    restart: always
+    volumes:
+      - ./data:/data
+      - ./litestream.yml:/etc/litestream.yml:ro
+    environment:
+      - LITESTREAM_ACCESS_KEY_ID=${STORAGE_BOX_KEY}
+      - LITESTREAM_SECRET_ACCESS_KEY=${STORAGE_BOX_SECRET}
+    command: replicate
+
+  dev:
+    profiles: [dev]
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./data:/data
+    environment:
+      - BETTER_AUTH_URL=http://localhost:5173
+      - BETTER_AUTH_SECRET=dev-only-secret-min-32-chars-padded
+      - GOOGLE_ID=${GOOGLE_ID}
+      - GOOGLE_SECRET=${GOOGLE_SECRET}
+      - MCP_HOST=localhost
+    stdin_open: true
+    tty: true
+
+volumes:
+  caddy_data:
+  caddy_config:

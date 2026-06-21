@@ -1,0 +1,22 @@
+{
+  "name": "@quick/app-store",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Elastic-2.0",
+  "exports": {
+    "./shared": "./src/shared/index.ts",
+    "./server": "./src/server/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@quick/core": "workspace:*",
+    "hono": "4.12.21",
+    "ts-pattern": "5.9.0",
+    "ulid": "3.0.2",
+    "valibot": "1.4.0"
+  }
+}
