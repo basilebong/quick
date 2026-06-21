@@ -1,31 +1,24 @@
-import {
-  type ConnectedAssistant,
-  ConnectedAssistantsResponseSchema,
-  type OAuthConsentId,
-  RevokeAssistantResponseSchema,
-} from "@quick/core/shared";
 import * as v from "valibot";
 
-const parseJson = async <T>(res: Response, schema: v.GenericSchema<unknown, T>): Promise<T> => {
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(body || `HTTP ${res.status}`);
-  }
-  const raw: unknown = await res.json();
-  return v.parse(schema, raw);
-};
+const OwnerUserSchema = v.object({
+  id: v.string(),
+  email: v.string(),
+  name: v.string(),
+});
+export type OwnerUser = v.InferOutput<typeof OwnerUserSchema>;
 
-export const fetchAssistants = async (): Promise<ConnectedAssistant[]> => {
-  const res = await fetch("/api/me/assistants", { credentials: "include" });
-  const body = await parseJson(res, ConnectedAssistantsResponseSchema);
-  return [...body.assistants];
-};
+const MeResponseSchema = v.object({ user: OwnerUserSchema });
 
-export const revokeAssistant = async (id: OAuthConsentId): Promise<OAuthConsentId> => {
-  const res = await fetch(`/api/me/assistants/${encodeURIComponent(id)}/revoke`, {
-    method: "POST",
-    credentials: "include",
-  });
-  const body = await parseJson(res, RevokeAssistantResponseSchema);
-  return body.id;
+export type MeResult =
+  | { kind: "owner"; user: OwnerUser }
+  | { kind: "unauthorized" }
+  | { kind: "forbidden" };
+
+export const fetchMe = async (): Promise<MeResult> => {
+  const res = await fetch("/api/me", { credentials: "include" });
+  if (res.status === 401) return { kind: "unauthorized" };
+  if (res.status === 403) return { kind: "forbidden" };
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const body = v.parse(MeResponseSchema, await res.json());
+  return { kind: "owner", user: body.user };
 };

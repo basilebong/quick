@@ -6,7 +6,6 @@ import {
   createAuditRecorder,
   createAuth,
   createDb,
-  createSsoCodeStore,
   isAllowedEmail,
   parseAllowedEmails,
 } from "@quick/core/server";
@@ -46,7 +45,6 @@ const hosting = createHostingService(db, { appsDir });
 const store = createStoreService(db);
 const files = createFilesService(db);
 const audit = createAuditRecorder(db);
-const ssoCodes = createSsoCodeStore(db);
 
 const appUrl = (slug: string): string => `${apexUrl.protocol}//${slug}.${apexUrl.host}`;
 
@@ -64,7 +62,6 @@ const app = createApp({
   auth,
   db,
   baseURL: env.BETTER_AUTH_URL,
-  secret: env.BETTER_AUTH_SECRET,
   jwksOrigin: `http://localhost:${env.PORT}`,
   allowedHosts,
   rootDomain,
@@ -76,7 +73,6 @@ const app = createApp({
   hosting,
   store,
   files,
-  ssoCodes,
   isOwner,
   appUrl,
 });

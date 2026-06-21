@@ -1,5 +1,5 @@
-import { parseEnv } from "@quick/core/shared";
 import { defineConfig, devices } from "@playwright/test";
+import { parseEnv } from "@quick/core/shared";
 
 const env = parseEnv(process.env);
 

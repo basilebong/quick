@@ -13,7 +13,7 @@ export const signInWithGoogle = (callbackURL = "/"): Promise<unknown> =>
   authClient.signIn.social({
     provider: "google",
     callbackURL,
-    errorCallbackURL: "/sign-in/rejected",
+    errorCallbackURL: "/sign-in",
   });
 
 export const signOut = async (): Promise<unknown> => {

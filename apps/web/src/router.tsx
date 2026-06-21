@@ -1,20 +1,22 @@
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import * as v from "valibot";
 
 import { AppShell } from "@/components/AppShell";
 import { AuthGuard } from "@/components/AuthGuard";
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { AppDetailScreen } from "@/features/apps/AppDetailScreen";
 import { AppsScreen } from "@/features/apps/AppsScreen";
-import { CheckingScreen } from "@/features/auth/CheckingScreen";
+import { CreateAppScreen } from "@/features/apps/CreateAppScreen";
 import { ConsentScreen } from "@/features/auth/ConsentScreen";
-import { FirstArrivalScreen } from "@/features/auth/FirstArrivalScreen";
-import { RejectedScreen } from "@/features/auth/RejectedScreen";
 import { SignInScreen } from "@/features/auth/SignInScreen";
-import { GroceryScreen } from "@/features/grocery/GroceryScreen";
-import { MeScreen } from "@/features/me/MeScreen";
-import { CreateRecipeScreen } from "@/features/recipes/CreateRecipeScreen";
-import { EditRecipeScreen } from "@/features/recipes/EditRecipeScreen";
-import { RecipeDetailScreen } from "@/features/recipes/RecipeDetailScreen";
-import { RecipesScreen } from "@/features/recipes/RecipesScreen";
+import { TokensScreen } from "@/features/tokens/TokensScreen";
+
+const Dashboard = ({ children }: { children: ReactNode }): React.ReactElement => (
+  <AuthGuard>
+    <DashboardLayout>{children}</DashboardLayout>
+  </AuthGuard>
+);
 
 export const rootRoute = createRootRoute({
   component: AppShell,
@@ -23,11 +25,16 @@ export const rootRoute = createRootRoute({
 export const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: CheckingScreen,
+  component: () => (
+    <Dashboard>
+      <AppsScreen />
+    </Dashboard>
+  ),
 });
 
 const signInSearchSchema = v.object({
   error: v.optional(v.picklist(["google_unreachable", "google_cancelled"])),
+  next: v.optional(v.string()),
 });
 
 export const signInRoute = createRoute({
@@ -36,104 +43,6 @@ export const signInRoute = createRoute({
   validateSearch: (search): v.InferOutput<typeof signInSearchSchema> =>
     v.parse(signInSearchSchema, search),
   component: SignInScreen,
-});
-
-const rejectedSearchSchema = v.object({
-  email: v.optional(v.pipe(v.string(), v.email())),
-});
-
-export const rejectedRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/sign-in/rejected",
-  validateSearch: (search): v.InferOutput<typeof rejectedSearchSchema> =>
-    v.parse(rejectedSearchSchema, search),
-  component: RejectedScreen,
-});
-
-export const welcomeRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/welcome",
-  component: () => (
-    <AuthGuard>
-      <FirstArrivalScreen />
-    </AuthGuard>
-  ),
-});
-
-export const groceryRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/grocery",
-  component: () => (
-    <AuthGuard>
-      <GroceryScreen />
-    </AuthGuard>
-  ),
-});
-
-export const recipesRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/recipes",
-  component: () => (
-    <AuthGuard>
-      <RecipesScreen />
-    </AuthGuard>
-  ),
-});
-
-export const newRecipeRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/recipes/new",
-  component: () => (
-    <AuthGuard>
-      <CreateRecipeScreen />
-    </AuthGuard>
-  ),
-});
-
-export const recipeDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/recipes/$recipeId",
-  component: () => {
-    const { recipeId } = recipeDetailRoute.useParams();
-    return (
-      <AuthGuard>
-        <RecipeDetailScreen recipeId={recipeId} />
-      </AuthGuard>
-    );
-  },
-});
-
-export const editRecipeRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/recipes/$recipeId/edit",
-  component: () => {
-    const { recipeId } = editRecipeRoute.useParams();
-    return (
-      <AuthGuard>
-        <EditRecipeScreen recipeId={recipeId} />
-      </AuthGuard>
-    );
-  },
-});
-
-export const appsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/apps",
-  component: () => (
-    <AuthGuard>
-      <AppsScreen />
-    </AuthGuard>
-  ),
-});
-
-export const meRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/me",
-  component: () => (
-    <AuthGuard>
-      <MeScreen />
-    </AuthGuard>
-  ),
 });
 
 const consentSearchSchema = v.object({
@@ -150,19 +59,46 @@ export const consentRoute = createRoute({
   component: ConsentScreen,
 });
 
+export const newAppRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/apps/new",
+  component: () => (
+    <Dashboard>
+      <CreateAppScreen />
+    </Dashboard>
+  ),
+});
+
+export const appDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/apps/$appId",
+  component: () => {
+    const { appId } = appDetailRoute.useParams();
+    return (
+      <Dashboard>
+        <AppDetailScreen appId={appId} />
+      </Dashboard>
+    );
+  },
+});
+
+export const tokensRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/tokens",
+  component: () => (
+    <Dashboard>
+      <TokensScreen />
+    </Dashboard>
+  ),
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
-  rejectedRoute,
-  welcomeRoute,
-  groceryRoute,
-  recipesRoute,
-  newRecipeRoute,
-  recipeDetailRoute,
-  editRecipeRoute,
-  appsRoute,
-  meRoute,
   consentRoute,
+  newAppRoute,
+  appDetailRoute,
+  tokensRoute,
 ]);
 
 export const router = createRouter({

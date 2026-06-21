@@ -18,7 +18,6 @@ const SCOPE_LABELS: Record<string, string> = {
   profile: "Your name and picture",
   email: "Your email address",
   offline_access: "Stay connected without signing in again",
-  grocery: "Read and manage your grocery list",
 };
 
 const describeScope = (scope: string): string => SCOPE_LABELS[scope] ?? scope;

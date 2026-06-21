@@ -1,11 +1,4 @@
 export {
-  APP_SESSION_COOKIE,
-  APP_SESSION_TTL_MS,
-  type AppSessionPayload,
-  signAppSession,
-  verifyAppSession,
-} from "./app-session.ts";
-export {
   type AssistantError,
   type AssistantsRoutesDeps,
   type AssistantsService,
@@ -38,9 +31,12 @@ export { createOriginCheck } from "./middleware/origin-check.ts";
 export { createRequireOwner } from "./middleware/owner.ts";
 export { createResolveApp } from "./middleware/resolve-app.ts";
 export { createRequireSession, type SessionVariables } from "./middleware/session.ts";
-export { createShareGate, type ShareGateDeps } from "./middleware/share-gate.ts";
-export { createSsoCodeStore, type SsoCodeFields, type SsoCodeStore } from "./sso/codes.ts";
-export { createSsoCallback, createSsoStart, type SsoDeps } from "./sso/routes.ts";
+export {
+  createShareGate,
+  LINK_COOKIE,
+  type SessionReader,
+  type ShareGateDeps,
+} from "./middleware/share-gate.ts";
 export type {
   AccessEntry,
   AccessEvent,

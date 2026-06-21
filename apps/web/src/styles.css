@@ -1,9 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@source "../../../packages/app-grocery/src/ui/**/*.{ts,tsx}";
-@source "../../../packages/app-recipes/src/ui/**/*.{ts,tsx}";
-
 @custom-variant dark (&:is(.dark *));
 
 @theme {

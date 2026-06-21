@@ -6,7 +6,6 @@ export default defineConfig({
     "./packages/core/src/server/auth/schema.ts",
     "./packages/core/src/server/audit/schema.ts",
     "./packages/core/src/server/idempotency/schema.ts",
-    "./packages/core/src/server/sso/schema.ts",
     "./packages/app-*/src/server/schema.ts",
   ],
   dialect: "sqlite",

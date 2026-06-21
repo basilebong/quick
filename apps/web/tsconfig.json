@@ -18,7 +18,8 @@
   "references": [
     { "path": "./tsconfig.node.json" },
     { "path": "../../packages/core" },
-    { "path": "../../packages/app-grocery" },
-    { "path": "../../packages/app-recipes" }
+    { "path": "../../packages/app-hosting" },
+    { "path": "../../packages/app-store" },
+    { "path": "../../packages/app-files" }
   ]
 }

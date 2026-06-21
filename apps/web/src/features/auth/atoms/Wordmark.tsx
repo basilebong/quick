@@ -1,4 +1,4 @@
-import { HouseLineIcon } from "@phosphor-icons/react";
+import { LightningIcon } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/cn";
 
@@ -8,8 +8,13 @@ type WordmarkProps = {
 
 export const Wordmark = ({ size = "lg" }: WordmarkProps): React.ReactElement => (
   <div className="flex items-center gap-2.5">
-    <div className="grid size-9 place-items-center rounded-[10px] bg-slate-900">
-      <HouseLineIcon size={20} weight="fill" className="text-white" />
+    <div
+      className={cn(
+        "grid place-items-center rounded-[10px] bg-slate-900",
+        size === "lg" ? "size-9" : "size-8",
+      )}
+    >
+      <LightningIcon size={size === "lg" ? 20 : 18} weight="fill" className="text-white" />
     </div>
     <span
       className={cn(

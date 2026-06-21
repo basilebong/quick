@@ -37,6 +37,7 @@ export default defineConfig({
     __PERSIST_BUSTER__: JSON.stringify(`Quick-${Date.now()}`),
   },
   build: {
+    target: "es2022",
     rollupOptions: {
       output: {
         manualChunks: vendorChunk,

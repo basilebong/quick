@@ -20,7 +20,6 @@ import {
   type AuditRecorder,
   type Auth,
   type Db,
-  type SsoCodeStore,
   type Tenant,
   type TenantVariables,
   type ViewerVariables,
@@ -28,8 +27,6 @@ import {
   createOriginCheck,
   createResolveApp,
   createShareGate,
-  createSsoCallback,
-  createSsoStart,
 } from "@quick/core/server";
 import type { UserId } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
@@ -43,7 +40,6 @@ export type ComposeOptions = {
   auth: Auth;
   db: Db;
   baseURL: string;
-  secret: string;
   jwksOrigin: string;
   allowedHosts: readonly string[];
   rootDomain: string;
@@ -55,7 +51,6 @@ export type ComposeOptions = {
   hosting: HostingService;
   store: StoreService;
   files: FilesService;
-  ssoCodes: SsoCodeStore;
   isOwner: (actor: UserId) => Promise<boolean>;
   appUrl: (slug: string) => string;
 };
@@ -71,22 +66,10 @@ const handleError = (err: Error, c: Context): Response => {
 type Bindings = { tenant: Tenant };
 
 export const createApp = (o: ComposeOptions) => {
-  const ssoDeps = {
-    auth: o.auth,
-    registry: o.hosting,
-    codes: o.ssoCodes,
-    resolver: o.hosting,
-    secret: o.secret,
-    apexBaseUrl: o.baseURL,
-    signInPath: "/sign-in",
-    secureCookies: o.secureCookies,
-  };
-
-  // The apex host: dashboard SPA + owner API + Better Auth + MCP.
+  // The apex host: dashboard SPA + owner API + Better Auth (incl. MCP OAuth) + MCP.
   const apex = new Hono<{ Bindings: Bindings; Variables: OwnerVariables }>()
     .use("*", secureHeaders())
     .on(["GET", "POST"], "/api/auth/*", (c) => o.auth.handler(c.req.raw))
-    .get("/_sso/start", createSsoStart(ssoDeps))
     .route(
       "/",
       mountMcp({
@@ -119,13 +102,13 @@ export const createApp = (o: ComposeOptions) => {
       c.set("tenant", c.env.tenant);
       return next();
     })
-    .get("/_sso/callback", createSsoCallback(ssoDeps))
     .use(
       "*",
       createShareGate({
         resolver: o.hosting,
-        secret: o.secret,
+        session: { getSession: (opts) => o.auth.api.getSession(opts) },
         apexBaseUrl: o.baseURL,
+        signInPath: "/sign-in",
         secureCookies: o.secureCookies,
       }),
     )

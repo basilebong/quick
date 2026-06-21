@@ -24,8 +24,14 @@ const errorCopy = {
   },
 } as const;
 
+const sameOriginNext = (next: string | undefined): string => {
+  if (next === undefined) return "/";
+  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+};
+
 export const SignInScreen = (): React.ReactElement => {
   const search = signInRoute.useSearch();
+  const next = sameOriginNext(search.next);
   const initial: Status =
     search.error === undefined ? { kind: "idle" } : { kind: "error", reason: search.error };
   const [status, setStatus] = useState<Status>(initial);
@@ -33,7 +39,7 @@ export const SignInScreen = (): React.ReactElement => {
   const handleSignIn = async (): Promise<void> => {
     setStatus({ kind: "signing-in" });
     try {
-      await signInWithGoogle("/");
+      await signInWithGoogle(next);
     } catch {
       setStatus({ kind: "error", reason: "google_unreachable" });
     }

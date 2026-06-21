@@ -20,6 +20,7 @@ export type CreateAuthOptions = {
 };
 
 export const createAuth = (opts: CreateAuthOptions) => {
+  const rootDomain = new URL(opts.baseURL).hostname;
   const plugins: BetterAuthPlugin[] = [
     jwt(),
     oauthProvider({
@@ -29,11 +30,6 @@ export const createAuth = (opts: CreateAuthOptions) => {
       allowDynamicClientRegistration: true,
       allowUnauthenticatedClientRegistration: true,
       requirePKCE: true,
-      // MCP access tokens are stateless JWTs verified locally against our JWKS,
-      // so Better Auth cannot revoke them server-side before they expire. This
-      // short TTL bounds the gap between "Revoke" and the token losing access;
-      // durable revocation lives in AssistantsService.revoke (deletes consent +
-      // refresh token, so no new token can be minted).
       accessTokenExpiresIn: 60 * 15,
       silenceWarnings: { oauthAuthServerConfig: true },
     }),
@@ -43,6 +39,10 @@ export const createAuth = (opts: CreateAuthOptions) => {
     appName: "Quick",
     baseURL: opts.baseURL,
     secret: opts.secret,
+
+    // Allow the apex sign-in to redirect back to any app subdomain (the google
+    // share-mode handoff uses callbackURL = the app's URL).
+    trustedOrigins: [opts.baseURL, `https://*.${rootDomain}`, `http://*.${rootDomain}`],
 
     database: drizzleAdapter(opts.db, {
       provider: "sqlite",
@@ -66,6 +66,10 @@ export const createAuth = (opts: CreateAuthOptions) => {
     advanced: {
       cookiePrefix: "Quick",
       useSecureCookies: opts.useSecureCookies,
+      // One Better Auth session, valid across the apex and every app subdomain —
+      // sign in once. Cross-app /_api access is fenced off by the Sec-Fetch-Site
+      // check (see middleware/origin-check.ts), not by cookie scoping.
+      crossSubDomainCookies: { enabled: true },
     },
 
     plugins,
