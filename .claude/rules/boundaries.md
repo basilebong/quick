@@ -1,53 +1,54 @@
 # Module boundaries
 
-## The subpath contract
+## Packages
+- `@quick/core` — platform plumbing: branded IDs, `Result`, host/slug parsing,
+  Better Auth, db wiring, MCP transport, audit log, SSO, and the tenancy
+  middleware (resolve-app, share-gate, origin-check, owner). Subpaths `./shared`
+  (browser-safe) and `./server`.
+- `@quick/app-hosting` — app registry, immutable deployments, share links, access
+  log, personal access tokens, static serving, MCP tools. Subpaths `./shared`,
+  `./server`, `./tools`.
+- `@quick/app-store` — the `/_api/db` building block. `./shared`, `./server`.
+- `@quick/app-files` — the `/_api/files` building block. `./shared`, `./server`.
 
-Each `packages/app-*` exports four entry points:
+## The subpath contract
 
 | Path        | Browser? | May import                                                       |
 |-------------|----------|------------------------------------------------------------------|
 | `./shared`  | yes      | `@quick/core/shared`, isomorphic libs (valibot, ts-pattern, ulid) |
-| `./server`  | no       | `./shared`, `@quick/core/server`, Drizzle, Hono, `bun:sqlite` |
+| `./server`  | no       | `./shared`, `@quick/core/server`, Drizzle, Hono, `bun:sqlite`, `node:*` |
 | `./tools`   | no       | `./shared`, `./server`, `@modelcontextprotocol/sdk`, Zod         |
-| `./ui`      | yes      | `./shared`, React, shadcn primitives, Phosphor, Vaul             |
 
-`apps/web` may only import `/shared` and `/ui` from app packages. Importing
-`/server` or `/tools` from browser code is a build error.
+Dashboard UI lives in `apps/web` (not in packages). `apps/web` and `apps/cli` may
+import ONLY `*/shared`. Importing `/server` or `/tools` from browser or CLI code
+is a build error.
 
 ## What MUST NOT appear under `src/shared/`
 
-- `bun:sqlite`, Drizzle, Hono, `node:*` modules
-- `process.env` reads (use `import.meta.env` in browser code, runtime config
-  passed in from `server/` otherwise)
-- The MCP SDK or Zod
+- `bun:sqlite`, Drizzle, Hono, `node:*` modules, the MCP SDK, Zod
+- `process.env` reads (use runtime config passed in from `server/`)
 
 If your "shared" function needs the DB, it isn't shared — split it.
 
 ## Core vs app
 
-- `@quick/core` contains platform plumbing: auth, db wiring, MCP transport,
-  audit log, branded IDs, Result, middleware.
-- Per-app code lives in `packages/app-<name>`. Cross-app helpers do not exist.
-  If two apps need the same thing, promote it to `core` only after a clear
-  third use case shows up.
+`@quick/core` is platform plumbing and never imports an app package. The tenancy
+middleware takes injected `AppRegistry` / `ShareResolver` interfaces, wired in
+`apps/server` — so `core` stays app-agnostic and the graph stays acyclic. App
+packages never import each other.
 
-Never modify `core` to add feature-specific logic.
-
-## Allowed cycles
-
-None. Workspace dependencies are a DAG:
+## The DAG (no cycles)
 
 ```
-apps/web   → app-*/shared, app-*/ui, core/shared
-apps/server → app-*/server, app-*/tools, core/server, core/shared
+apps/web     → app-*/shared, core/shared
+apps/cli     → app-hosting/shared, core/shared
+apps/server  → app-*/server, app-hosting/tools, core/server, core/shared
 app-*/server → app-*/shared, core/server, core/shared
-app-*/tools  → app-*/server, app-*/shared, core/server, core/shared
-app-*/ui     → app-*/shared, core/shared
+app-hosting/tools → app-hosting/server, app-hosting/shared, core/server, core/shared
 core/server  → core/shared
 ```
 
-`apps/server` may not import from `apps/web` and vice versa — they share state
-only through `@quick/core/shared` types and the HTTP RPC client.
+`apps/server` may not import from `apps/web`/`apps/cli` and vice versa.
 
 ## How to check
 

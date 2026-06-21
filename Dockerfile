@@ -6,9 +6,11 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/server/package.json   ./apps/server/
 COPY apps/web/package.json      ./apps/web/
-COPY packages/core/package.json ./packages/core/
-COPY packages/app-grocery/package.json ./packages/app-grocery/
-COPY packages/app-recipes/package.json ./packages/app-recipes/
+COPY apps/cli/package.json      ./apps/cli/
+COPY packages/core/package.json        ./packages/core/
+COPY packages/app-hosting/package.json ./packages/app-hosting/
+COPY packages/app-store/package.json   ./packages/app-store/
+COPY packages/app-files/package.json   ./packages/app-files/
 
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     corepack enable && corepack prepare --activate \

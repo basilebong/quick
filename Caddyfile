@@ -1,4 +1,23 @@
-{$QUICK_DOMAIN:app.quick.com} {
-    encode zstd gzip
-    reverse_proxy app:3000
+{
+	email {$ACME_EMAIL}
+}
+
+# Apex: dashboard + owner API + MCP. HTTP-01 challenge (independent of DNS-01, so
+# a DNS-token misconfig can't take the apex TLS down with it).
+{$QUICK_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+# Deployed apps live on wildcard subdomains. The wildcard cert needs the DNS-01
+# challenge via the Hetzner DNS plugin (see Dockerfile.caddy). `header_up Host`
+# preserves the subdomain so the Bun app can resolve the tenant.
+*.{$QUICK_DOMAIN} {
+	encode zstd gzip
+	tls {
+		dns hetzner {env.HETZNER_DNS_API_TOKEN}
+	}
+	reverse_proxy app:3000 {
+		header_up Host {host}
+	}
 }

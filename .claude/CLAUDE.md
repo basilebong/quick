@@ -1,7 +1,12 @@
-# Quick Family Platform — Agent Constitution
+# Quick — Agent Constitution
 
 You are working in a pnpm-workspaces monorepo. Loaded every session.
 **If you violate any rule, STOP and ask.**
+
+Quick is a self-hosted multi-tenant static-app hosting platform: deploy a folder,
+get a secure URL at `<slug>.${QUICK_DOMAIN}`, shared with clients via Google
+sign-in or expiring secret links. The security model is load-bearing — read
+`.claude/rules/security.md` before touching auth, cookies, sharing, or serving.
 
 ## Stack (locked)
 - Runtime: Bun (current stable; never `node`, never `npx` — use `bun`, `pnpm dlx`)
@@ -174,6 +179,7 @@ You are working in a pnpm-workspaces monorepo. Loaded every session.
     and shipped bugs.
 
 ## See also
+- `.claude/rules/security.md`
 - `.claude/rules/types.md`
 - `.claude/rules/testing.md`
 - `.claude/rules/boundaries.md`
