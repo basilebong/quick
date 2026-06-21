@@ -7,6 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 const env = parseEnv(process.env);
 const apiTarget = `http://localhost:${env.PORT}`;
+const buildTarget = "es2022";
 
 const matchApiRequest = ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }): boolean =>
   sameOrigin && url.pathname.startsWith("/api/");
@@ -37,12 +38,18 @@ export default defineConfig({
     __PERSIST_BUSTER__: JSON.stringify(`Quick-${Date.now()}`),
   },
   build: {
-    target: "es2022",
+    target: buildTarget,
     rollupOptions: {
       output: {
         manualChunks: vendorChunk,
       },
     },
+  },
+  optimizeDeps: {
+    // Vite hardcodes the dep pre-bundler's esbuild target to ESBUILD_MODULES_TARGET
+    // (includes safari14); esbuild >=0.26 refuses to lower for-of destructuring to
+    // safari14 and floods `vite dev` with errors. Match our build target instead.
+    esbuildOptions: { target: buildTarget },
   },
   plugins: [
     react(),
