@@ -15,7 +15,7 @@
     "@quick/app-hosting": "workspace:*",
     "@quick/app-store": "workspace:*",
     "@quick/core": "workspace:*",
-    "hono": "4.12.21"
+    "hono": "4.12.26"
   },
   "devDependencies": {}
 }
