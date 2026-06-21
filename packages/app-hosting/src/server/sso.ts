@@ -43,8 +43,10 @@ export const createSsoGrant = (deps: SsoGrantDeps) =>
       );
     }
     const code = await deps.service.createSsoCode(app.id, parseUserId(session.user.id));
+    // Tenants share the apex's scheme (https in prod behind Caddy, http in local dev).
+    const scheme = new URL(deps.apexBaseUrl).protocol;
     return c.redirect(
-      `https://${appHost}/sso/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`,
+      `${scheme}//${appHost}/sso/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`,
       302,
     );
   });

@@ -95,6 +95,9 @@ export default defineConfig({
       "/api": { target: apiTarget, ws: true, changeOrigin: true },
       "/mcp": { target: apiTarget, changeOrigin: true },
       "/.well-known": { target: apiTarget, changeOrigin: true },
+      // The google-mode SSO handoff is an apex SERVER route; in prod Caddy routes
+      // it to the app, in dev Vite must forward it to the Hono server.
+      "/sso": { target: apiTarget, changeOrigin: true },
     },
   },
 });
