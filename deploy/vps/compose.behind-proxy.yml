@@ -19,8 +19,10 @@ services:
       - "127.0.0.1:${APP_PORT:-8003}:3000"
 
   # Replicates the SQLite db (including inline file BLOBs) to object storage.
+  # Opt-in: only runs under the `backup` profile (COMPOSE_PROFILES=prod,backup), so a
+  # deploy without backup creds doesn't crash-loop on an empty endpoint.
   litestream:
-    profiles: [prod]
+    profiles: [backup]
     image: litestream/litestream:0.3.13
     restart: always
     volumes:
@@ -34,9 +36,10 @@ services:
     command: replicate
 
   # Litestream only covers the db; deployed bundles + uploaded files live under
-  # /data/apps, so back them up daily with restic (encrypted, deduped).
+  # /data/apps, so back them up daily with restic (encrypted, deduped). Opt-in:
+  # only runs under the `backup` profile (COMPOSE_PROFILES=prod,backup).
   apps-backup:
-    profiles: [prod]
+    profiles: [backup]
     image: restic/restic:0.17.3
     restart: always
     volumes:

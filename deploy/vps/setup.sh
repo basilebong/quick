@@ -20,6 +20,8 @@ CONF="${SCRIPT_DIR}/quick.conf"
 TMPL="${SCRIPT_DIR}/caddy-quick.snippet.tmpl"
 PLACEHOLDER_DOMAIN="quick.example.com"
 MARKER_BEGIN="# >>> quick BEGIN"
+OD_BEGIN="# >>> quick on_demand_tls BEGIN (managed by deploy/vps/setup.sh) >>>"
+OD_END="# <<< quick on_demand_tls END (managed by deploy/vps/setup.sh) <<<"
 
 log()  { printf '\033[1;32m[setup]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[setup]\033[0m %s\n' "$*" >&2; }
@@ -145,15 +147,15 @@ configure_caddy() {
   candidate="$(mktemp)"
   cp "$CADDYFILE" "$candidate"
 
-  if grep -qF "ask ${ASK_URL}" "$candidate"; then
+  if grep -qF "$OD_BEGIN" "$candidate" || grep -qF "ask ${ASK_URL}" "$candidate"; then
     log "Quick's on_demand_tls ask already present; global block left as-is"
   elif grep -q 'on_demand_tls' "$candidate"; then
     die "host Caddy already has a global on_demand_tls with a different ask endpoint. Caddy allows only ONE; merge Quick's ask ($ASK_URL) into the existing block by hand (or remove it), then re-run. Refusing to touch it."
   else
     tmp="$(mktemp)"
     if first_real_line_is_brace "$candidate"; then
-      awk -v url="$ASK_URL" '
-        BEGIN { ins = "\ton_demand_tls {\n\t\task " url "\n\t}"; depth=0; started=0; done=0 }
+      awk -v url="$ASK_URL" -v ob="$OD_BEGIN" -v oe="$OD_END" '
+        BEGIN { ins = "\t" ob "\n\ton_demand_tls {\n\t\task " url "\n\t}\n\t" oe; depth=0; started=0; done=0 }
         {
           if (done) { print; next }
           out=""; n=length($0)
@@ -172,7 +174,7 @@ configure_caddy() {
       ' "$candidate" > "$tmp"
     else
       warn "no global options block found; prepending one with the on_demand_tls ask"
-      { printf '{\n\ton_demand_tls {\n\t\task %s\n\t}\n}\n\n' "$ASK_URL"; cat "$candidate"; } > "$tmp"
+      { printf '%s\n{\n\ton_demand_tls {\n\t\task %s\n\t}\n}\n%s\n\n' "$OD_BEGIN" "$ASK_URL" "$OD_END"; cat "$candidate"; } > "$tmp"
     fi
     mv "$tmp" "$candidate"
     changed=1
@@ -217,8 +219,9 @@ $(log "setup complete — remaining MANUAL steps:")
   1. Fill in the environment file (contains secrets):
        sudo -u $DEPLOY_USER nano $OPT_DIR/.env
      Required: BETTER_AUTH_URL=https://$QUICK_DOMAIN, BETTER_AUTH_SECRET
-     (openssl rand -hex 32), GOOGLE_ID, GOOGLE_SECRET, QUICK_ALLOWED_EMAILS;
-     STORAGE_BOX_* + RESTIC_* if you want backups.
+     (openssl rand -hex 32), GOOGLE_ID, GOOGLE_SECRET, QUICK_ALLOWED_EMAILS.
+     Backups are opt-in: set COMPOSE_PROFILES=prod,backup and fill STORAGE_BOX_*
+     + RESTIC_* to enable litestream + restic.
 
   2. GitHub -> repo Settings -> Environments -> 'production' -> add secrets:
        VPS_HOST    = $PUBLIC_IP

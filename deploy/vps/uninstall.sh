@@ -14,6 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONF="${SCRIPT_DIR}/quick.conf"
 MARKER_BEGIN="# >>> quick BEGIN"
+OD_BEGIN="# >>> quick on_demand_tls BEGIN (managed by deploy/vps/setup.sh) >>>"
 
 log()  { printf '\033[1;32m[uninstall]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[uninstall]\033[0m %s\n' "$*" >&2; }
@@ -65,39 +66,29 @@ stop_stack() {
   fi
 }
 
-# Drop the marker region AND Quick's own on_demand_tls block (matched by its ask
-# URL, so an operator's pre-existing block is left intact), then validate the
-# candidate BEFORE swapping it in.
+# Strip the two marked regions setup.sh added — the site blocks and the
+# on_demand_tls directive — then validate the candidate BEFORE swapping it in.
+# Removal is keyed on Quick's own markers, never a substring of an operator's
+# config, so a global block setup.sh merged into keeps its other directives and a
+# pre-existing on_demand_tls is never touched.
 revert_caddy() {
-  if ! grep -qF "$MARKER_BEGIN" "$CADDYFILE" && ! grep -qF "ask ${ASK_URL}" "$CADDYFILE"; then
+  if ! grep -qF "$MARKER_BEGIN" "$CADDYFILE" && ! grep -qF "$OD_BEGIN" "$CADDYFILE"; then
+    if grep -qF "ask ${ASK_URL}" "$CADDYFILE"; then
+      warn "found 'ask ${ASK_URL}' with no Quick marker (hand-merged?); leaving it in place — remove that line from your on_demand_tls block by hand if it is no longer needed."
+    fi
     log "no Quick Caddy blocks present; nothing to revert"
     return 0
   fi
   local candidate backup
   candidate="$(mktemp)"
   awk '
+    /# <<< quick on_demand_tls END/ { skipod=0; next }
+    /# >>> quick on_demand_tls BEGIN/ { skipod=1 }
     /# <<< quick END/ { skip=0; next }
     /# >>> quick BEGIN/ { skip=1 }
-    skip { next }
+    (skip || skipod) { next }
     { print }
-  ' "$CADDYFILE" | awk -v ask="ask ${ASK_URL}" '
-    {
-      if (inblk) {
-        buf = buf $0 "\n"
-        for (i=1;i<=length($0);i++){c=substr($0,i,1); if(c=="{")d++; else if(c=="}")d--}
-        if (d<=0) { if (index(buf, ask)==0) printf "%s", buf; buf=""; inblk=0 }
-        next
-      }
-      if ($0 ~ /^[[:space:]]*on_demand_tls[[:space:]]*\{/) {
-        inblk=1; d=0; buf=$0 "\n"
-        for (i=1;i<=length($0);i++){c=substr($0,i,1); if(c=="{")d++; else if(c=="}")d--}
-        if (d<=0) { if (index(buf, ask)==0) printf "%s", buf; buf=""; inblk=0 }
-        next
-      }
-      print
-    }
-    END { if (inblk) printf "%s", buf }
-  ' > "$candidate"
+  ' "$CADDYFILE" > "$candidate"
 
   if ! caddy validate --config "$candidate" --adapter caddyfile >/dev/null 2>&1; then
     warn "candidate Caddyfile FAILED validation — $CADDYFILE left UNTOUCHED:"

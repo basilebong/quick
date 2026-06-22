@@ -58,8 +58,8 @@ on_demand_tls {
 
 Caddy calls `GET …/_internal/tls-check?domain=<sni-host>` before each issuance.
 The app (`packages/core/src/server/middleware/tls-check.ts`) returns `200` only
-for the apex and for `<slug>` values that resolve to a real deployed app, and
-`404` otherwise. The route is unauthenticated, read-only, and runs ahead of the
+for the apex and for `<slug>` values that resolve to a known app (a created slug),
+and `404` otherwise. The route is unauthenticated, read-only, and runs ahead of the
 share gate.
 
 > **Let's Encrypt limits:** on-demand issues one cert per new subdomain. LE allows
@@ -82,7 +82,7 @@ share gate.
 |---|---|
 | `setup.sh` | Idempotent installer (run with `sudo`). |
 | `uninstall.sh` | Safe reversal (validate-before-swap; keeps data by default). |
-| `compose.behind-proxy.yml` | App (loopback) + litestream + restic. No Caddy. Installed as `/opt/quick/compose.yaml`. |
+| `compose.behind-proxy.yml` | App (loopback) + opt-in litestream + restic backups (behind the `backup` profile). No Caddy. Installed as `/opt/quick/compose.yaml`. |
 | `litestream.yml` | SQLite replication config (installed alongside). |
 | `caddy-quick.snippet.tmpl` | The apex + wildcard Caddy blocks; `setup.sh` renders the `@@PLACEHOLDERS@@` from `quick.conf`. |
 | `quick.conf.example` | Per-box values (domain, port, user, IP). Copy to `quick.conf` (gitignored). |
@@ -104,7 +104,8 @@ sudo bash setup.sh
 
 1. **Fill `/opt/quick/.env`** — `BETTER_AUTH_URL=https://<your domain>`,
    `BETTER_AUTH_SECRET` (`openssl rand -hex 32`), `GOOGLE_ID`, `GOOGLE_SECRET`,
-   `QUICK_ALLOWED_EMAILS`, and `STORAGE_BOX_*` / `RESTIC_*` for backups.
+   `QUICK_ALLOWED_EMAILS`. Backups are opt-in: set `COMPOSE_PROFILES=prod,backup`
+   and fill `STORAGE_BOX_*` / `RESTIC_*` to enable litestream + restic.
 2. **GitHub → Settings → Environments → `production` → secrets:**
    - `VPS_HOST` = your VPS IP
    - `VPS_SSH_KEY` = the **private** key `setup.sh` prints (also at
@@ -136,10 +137,10 @@ sudo bash uninstall.sh --purge-data    # also delete /opt/quick/data
 sudo bash uninstall.sh --remove-user   # full teardown: user + /opt/quick (incl. data)
 ```
 
-Caddy is reverted by removing the marked block and the `on_demand_tls` directive,
-validating the candidate **before** it replaces the live file, so the other sites
-on the box are never put at risk. DNS records live at your registrar and are not
-touched.
+Caddy is reverted by stripping the two marked regions Quick added (the site blocks
+and the `on_demand_tls` directive), validating the candidate **before** it replaces
+the live file, so the other sites on the box are never put at risk. DNS records live
+at your registrar and are not touched.
 
 ## Notes
 
