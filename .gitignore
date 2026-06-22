@@ -38,3 +38,6 @@ pnpm-debug.log*
 .vite/
 
 .claude/settings.local.json
+
+# VPS deploy: per-box integration values (not secrets; never committed)
+deploy/vps/quick.conf

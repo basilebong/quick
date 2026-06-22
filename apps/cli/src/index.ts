@@ -1,5 +1,12 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative, sep } from "node:path";
 import { ShareModeSchema } from "@quick/app-hosting/shared";
@@ -77,8 +84,11 @@ const readConfig = (): Config => {
 };
 
 const writeConfig = (config: Config): void => {
-  mkdirSync(dirname(CONFIG_PATH), { recursive: true });
-  writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`);
+  mkdirSync(dirname(CONFIG_PATH), { recursive: true, mode: 0o700 });
+  writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
+  // writeFileSync's mode is ignored when the file already exists; chmod
+  // guarantees 0600 on overwrite so an older world-readable token is tightened.
+  chmodSync(CONFIG_PATH, 0o600);
 };
 
 type Args = { positional: string[]; flags: Map<string, string> };

@@ -38,6 +38,7 @@ export {
   type SessionReader,
   type ShareGateDeps,
 } from "./middleware/share-gate.ts";
+export { createTlsCheck } from "./middleware/tls-check.ts";
 export type {
   AccessEntry,
   AccessEvent,

@@ -69,7 +69,9 @@ jobs:
           username: quick
           key: ${{ secrets.VPS_SSH_KEY }}
           script_stop: true
-          script: |
-            cd /opt/quick
-            docker compose pull app caddy
-            docker compose up -d
+          # The deploy key is force-commanded to /opt/quick/deploy.sh on the box, so
+          # this is advisory — deploy.sh is the single source of truth
+          # (docker compose pull app && docker compose up -d, with the prod profile
+          # active via COMPOSE_PROFILES in /opt/quick/.env). There is no caddy service
+          # on this host; the host's own Caddy proxies the app.
+          script: /opt/quick/deploy.sh

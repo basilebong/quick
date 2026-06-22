@@ -51,7 +51,7 @@ sqlite.exec("VACUUM");
 GOOD (non-obvious invariant):
 ```ts
 await server.connect(transport);
-return transport.handleFetchRequest(c.req.raw);
+return transport.handleRequest(c.req.raw);
 ```
 (no comment needed)
 

@@ -88,6 +88,23 @@ describe("share gate", () => {
     expect(res.headers.get("location") ?? "").toContain("/sso/grant");
   });
 
+  test("google mode, no session, a non-navigation request is rejected 401 (not redirected to an HTML grant page)", async () => {
+    const res = await build({ kind: "app", app: appCtx("google") }, resolver()).request(
+      "https://acme.quick.example.com/data.json",
+      { headers: { "sec-fetch-dest": "empty" } },
+    );
+    expect(res.status).toBe(401);
+  });
+
+  test("google mode, no session, an explicit document navigation still redirects to grant", async () => {
+    const res = await build({ kind: "app", app: appCtx("google") }, resolver()).request(
+      "https://acme.quick.example.com/",
+      { headers: { "sec-fetch-dest": "document" } },
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location") ?? "").toContain("/sso/grant");
+  });
+
   test("link mode without a token shows the link page (403)", async () => {
     const res = await build({ kind: "app", app: appCtx("link") }, resolver()).request(
       "https://acme.quick.example.com/",

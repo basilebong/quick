@@ -1,0 +1,10 @@
+dbs:
+  - path: /data/app.db
+    replicas:
+      - type: s3
+        endpoint: https://${STORAGE_BOX_ENDPOINT:-fsn1.your-objectstorage.com}
+        bucket: ${STORAGE_BOX_BUCKET:-quick-backup}
+        path: app.db
+        retention: 720h
+        snapshot-interval: 24h
+        sync-interval: 10s

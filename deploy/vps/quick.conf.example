@@ -1,0 +1,24 @@
+# Per-box integration values for the Caddy recipe. Copy to quick.conf (gitignored)
+# and fill in. Read by setup.sh and uninstall.sh. These are NOT secrets — app
+# secrets (auth, OAuth, storage) live in .env, never here and never committed.
+#
+#   cp quick.conf.example quick.conf && $EDITOR quick.conf
+#   sudo bash setup.sh
+#
+# Values may also be passed as environment variables, which override quick.conf:
+#   sudo QUICK_DOMAIN=quick.acme.com APP_PORT=8003 bash setup.sh
+
+# Apex domain Quick is served at. Apps live at <slug>.$QUICK_DOMAIN. Required.
+# Point A records for both `<apex-label>` and `*.<apex-label>` at this VPS first.
+QUICK_DOMAIN=quick.example.com
+
+# Loopback port the app container binds on the host; the host proxy reverse-proxies
+# to it. Pick one that is free on the box. Keep it in sync with APP_PORT in .env.
+APP_PORT=8003
+
+# Dedicated system user that owns /opt/quick and runs the stack (in the docker group).
+DEPLOY_USER=quick
+
+# Public IP of this VPS. Only used to print the VPS_HOST GitHub-secret hint at the
+# end of setup.sh; not written anywhere on the box.
+PUBLIC_IP=203.0.113.10
