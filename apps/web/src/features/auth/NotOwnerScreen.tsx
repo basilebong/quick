@@ -19,8 +19,8 @@ export const NotOwnerScreen = ({ email }: NotOwnerScreenProps): React.ReactEleme
   };
 
   return (
-    <main className="flex min-h-dvh flex-col bg-slate-50 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-      <div className="flex flex-1 flex-col px-6 pt-16 pb-10">
+    <main className="flex min-h-dvh flex-col bg-slate-50 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:items-center sm:justify-center">
+      <div className="flex w-full flex-1 flex-col px-6 pt-16 pb-10 sm:max-w-md sm:flex-none sm:py-12">
         <Wordmark />
 
         <div className="mt-12 rounded-2xl border border-slate-200 bg-white p-5">
@@ -48,11 +48,11 @@ export const NotOwnerScreen = ({ email }: NotOwnerScreenProps): React.ReactEleme
           </div>
         </div>
 
-        <div className="flex-1" />
+        <div className="flex-1 sm:hidden" />
 
         <Button
           onClick={handleSignOut}
-          className="min-h-12 w-full rounded-2xl bg-slate-900 font-medium text-base text-white hover:bg-slate-900/95"
+          className="min-h-12 w-full rounded-2xl bg-slate-900 font-medium text-base text-white hover:bg-slate-900/95 sm:mt-9"
         >
           Sign out
         </Button>
