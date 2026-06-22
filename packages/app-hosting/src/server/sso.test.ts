@@ -136,4 +136,62 @@ describe("sso handoff", () => {
       ).toBe(404);
     });
   });
+
+  test("an `app` host with embedded userinfo cannot redirect the code off-domain", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const res = await h.apex.request(
+        `/sso/grant?app=${encodeURIComponent("acme.quick.example.com:@evil.com")}&next=%2F`,
+        { headers: { cookie: h.cookie } },
+      );
+      expect(res.status).toBe(302);
+      const loc = new URL(res.headers.get("location") ?? "");
+      expect(loc.host).toBe(APP_HOST);
+      expect((loc.searchParams.get("code") ?? "").length).toBeGreaterThan(20);
+    });
+  });
+
+  test("an `app` host with an @ that does not truncate is rejected", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const res = await h.apex.request(
+        `/sso/grant?app=${encodeURIComponent("acme.quick.example.com@evil.com")}`,
+        { headers: { cookie: h.cookie } },
+      );
+      expect(res.status).toBe(400);
+    });
+  });
+
+  test("the callback rejects a backslash `next` as an open redirect", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const cb = await h.tenant.request(
+        `https://${APP_HOST}/sso/callback?next=${encodeURIComponent("/\\evil.com")}`,
+      );
+      expect(cb.status).toBe(302);
+      expect(cb.headers.get("location")).toBe("/");
+    });
+  });
+
+  test("the callback rejects a protocol-relative `next` as an open redirect", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const cb = await h.tenant.request(
+        `https://${APP_HOST}/sso/callback?next=${encodeURIComponent("//evil.com")}`,
+      );
+      expect(cb.status).toBe(302);
+      expect(cb.headers.get("location")).toBe("/");
+    });
+  });
+
+  test("the callback preserves a same-origin path `next`", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const cb = await h.tenant.request(
+        `https://${APP_HOST}/sso/callback?next=${encodeURIComponent("/dash?tab=1")}`,
+      );
+      expect(cb.status).toBe(302);
+      expect(cb.headers.get("location")).toBe("/dash?tab=1");
+    });
+  });
 });

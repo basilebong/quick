@@ -6,6 +6,13 @@ import { idempotencyKeys } from "./schema.ts";
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+// A handler whose response body carries a freshly minted plaintext secret (a PAT
+// or a share-link token, shown to the owner exactly once) sets this header to opt
+// out of body caching — otherwise the secret would be persisted at rest in the
+// idempotency table. The middleware strips it before the response leaves. See
+// .claude/rules/security.md (Secrets at rest).
+export const IDEMPOTENCY_SKIP_HEADER = "x-quick-idempotency-skip";
+
 type IdentityVariables = { user: { id: string } };
 
 export const createIdempotency = (db: Db, ttlMs: number = DEFAULT_TTL_MS) =>
@@ -30,6 +37,11 @@ export const createIdempotency = (db: Db, ttlMs: number = DEFAULT_TTL_MS) =>
     }
 
     await next();
+
+    if (c.res.headers.get(IDEMPOTENCY_SKIP_HEADER) !== null) {
+      c.res.headers.delete(IDEMPOTENCY_SKIP_HEADER);
+      return;
+    }
 
     const contentType = c.res.headers.get("content-type") ?? "";
     if (c.res.status < 200 || c.res.status >= 300 || !contentType.includes("application/json")) {
