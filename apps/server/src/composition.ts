@@ -28,6 +28,7 @@ import {
   type ViewerVariables,
   createIdempotency,
   createOriginCheck,
+  createRequestLogger,
   createResolveApp,
   createShareGate,
   createTlsCheck,
@@ -35,7 +36,6 @@ import {
 import type { UserId } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { mountMcp } from "./mcp.ts";
 import { mountStatic } from "./static.ts";
@@ -141,7 +141,7 @@ export const createApp = (o: ComposeOptions) => {
 
   // Top dispatcher: resolve the tenant from Host, then hand off to the right app.
   return new Hono<{ Variables: TenantVariables }>()
-    .use("*", logger())
+    .use("*", createRequestLogger())
     .get("/healthz", (c) => c.json({ ok: true }))
     .get("/_internal/tls-check", createTlsCheck({ rootDomain: o.rootDomain, registry: o.hosting }))
     .use("*", createResolveApp({ rootDomain: o.rootDomain, registry: o.hosting }))

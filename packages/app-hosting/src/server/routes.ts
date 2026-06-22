@@ -1,3 +1,4 @@
+import { IDEMPOTENCY_SKIP_HEADER } from "@quick/core/server";
 import {
   parseAccessTokenId,
   parseAppId,
@@ -45,6 +46,14 @@ const actorOf = (c: Context<Ctx>) => parseUserId(c.var.user.id);
 const fail = (c: Context, e: HostingError) => c.json(e, hostingErrorStatus(e));
 const badBody = (c: Context) =>
   c.json({ kind: "invalid_input", message: "invalid request body" }, 400);
+
+// 201 for a body that contains a one-time plaintext secret (PAT / share-link
+// token). The skip header keeps the idempotency middleware from persisting the
+// secret at rest; it is stripped before the response leaves.
+const createdSecret = (c: Context, value: unknown) => {
+  c.header(IDEMPOTENCY_SKIP_HEADER, "1");
+  return c.json(value, 201);
+};
 
 // Mounted at /api/apps on the apex, behind createOwnerAuth.
 export const createHostingRoutes = (deps: { service: HostingService }) =>
@@ -105,7 +114,7 @@ export const createHostingRoutes = (deps: { service: HostingService }) =>
         body.value,
         actorOf(c),
       );
-      return r.kind === "ok" ? c.json(r.value, 201) : fail(c, r.error);
+      return r.kind === "ok" ? createdSecret(c, r.value) : fail(c, r.error);
     })
     .delete("/:appId/links/:linkId", async (c) => {
       const r = await deps.service.revokeLink(
@@ -126,7 +135,7 @@ export const createTokenRoutes = (deps: { service: HostingService }) =>
       const body = await readBody(c, CreateTokenInputSchema);
       if (!body.ok) return badBody(c);
       const r = await deps.service.createToken(actorOf(c), body.value.label);
-      return r.kind === "ok" ? c.json(r.value, 201) : fail(c, r.error);
+      return r.kind === "ok" ? createdSecret(c, r.value) : fail(c, r.error);
     })
     .delete("/:tokenId", async (c) => {
       const r = await deps.service.revokeToken(

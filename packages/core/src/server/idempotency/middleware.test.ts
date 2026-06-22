@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import type { Db } from "../db/index.ts";
 import { withTestAuth } from "../test/index.ts";
-import { createIdempotency } from "./middleware.ts";
+import { IDEMPOTENCY_SKIP_HEADER, createIdempotency } from "./middleware.ts";
 
 const buildApp = (db: Db, userId: string) => {
   let creates = 0;
@@ -84,6 +84,39 @@ describe("createIdempotency", () => {
       const second = await post("/bad", "k-bad");
       expect(second.status).toBe(400);
       expect(second.headers.get("idempotent-replay")).toBeNull();
+    });
+  });
+
+  test("a response marked to skip is not cached, and the marker never reaches the client", async () => {
+    await withTestAuth({}, async ({ db }) => {
+      let mints = 0;
+      const app = new Hono<{ Variables: { user: { id: string } } }>()
+        .use("*", async (c, next) => {
+          c.set("user", { id: "user-1" });
+          return next();
+        })
+        .use("*", createIdempotency(db))
+        .post("/tokens", (c) => {
+          mints += 1;
+          c.header(IDEMPOTENCY_SKIP_HEADER, "1");
+          return c.json({ token: `secret-${mints}` }, 201);
+        });
+      const post = () =>
+        app.request("/tokens", {
+          method: "POST",
+          headers: { "idempotency-key": "k1" },
+          body: "{}",
+        });
+
+      const first = await post();
+      expect(first.status).toBe(201);
+      expect(first.headers.get(IDEMPOTENCY_SKIP_HEADER)).toBeNull();
+      expect(await first.json()).toEqual({ token: "secret-1" });
+
+      const second = await post();
+      expect(second.headers.get("idempotent-replay")).toBeNull();
+      expect(await second.json()).toEqual({ token: "secret-2" });
+      expect(mints).toBe(2);
     });
   });
 });

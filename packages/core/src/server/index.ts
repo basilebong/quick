@@ -15,7 +15,7 @@ export { isAllowedEmail, parseAllowedEmails } from "./auth/allowlist.ts";
 export { type Auth, createAuth, type CreateAuthOptions } from "./auth/index.ts";
 export { createDb, type Db } from "./db/index.ts";
 export { escapeHtml, linkAccessPage, notFoundAppPage } from "./html.ts";
-export { createIdempotency } from "./idempotency/middleware.ts";
+export { createIdempotency, IDEMPOTENCY_SKIP_HEADER } from "./idempotency/middleware.ts";
 export {
   type AuthedMcpHandler,
   createAuthServerMetadataHandler,
@@ -29,6 +29,7 @@ export {
 } from "./mcp/index.ts";
 export { createOriginCheck } from "./middleware/origin-check.ts";
 export { createRequireOwner } from "./middleware/owner.ts";
+export { createRequestLogger, redactLogLine } from "./middleware/request-logger.ts";
 export { createResolveApp } from "./middleware/resolve-app.ts";
 export { createRequireSession, type SessionVariables } from "./middleware/session.ts";
 export {

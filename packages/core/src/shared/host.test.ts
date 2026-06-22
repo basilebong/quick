@@ -27,4 +27,15 @@ describe("parseSubdomain", () => {
     expect(parseSubdomain("acme.localhost", "localhost")).toEqual({ kind: "app", label: "acme" });
     expect(parseSubdomain("localhost", "localhost")).toEqual({ kind: "apex" });
   });
+
+  test("strips everything from the first ':' — callers MUST NOT reflect the raw host", () => {
+    expect(parseSubdomain("acme.quick.example.com:3000@evil.com", rd)).toEqual({
+      kind: "app",
+      label: "acme",
+    });
+    expect(parseSubdomain("acme.quick.example.com:@evil.com", rd)).toEqual({
+      kind: "app",
+      label: "acme",
+    });
+  });
 });

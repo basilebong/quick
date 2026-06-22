@@ -5,10 +5,22 @@ import { setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import { APP_SESSION_TTL_MS, type HostingService } from "./service.ts";
 
-// A `next` we will redirect the browser to must be a same-origin PATH, never an
-// absolute URL — otherwise the handoff becomes an open redirector.
-const safePath = (raw: string | undefined): string =>
-  raw?.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+// A `next` we redirect the browser to must be a same-origin PATH, never an
+// authority — otherwise the handoff becomes an open redirector. Resolving against
+// a fixed base catches every authority form at once (`//host`, `/\host`, and the
+// tab/newline variants the URL parser strips): anything that lands on a different
+// origin is discarded.
+const SAFE_PATH_BASE = "https://app.invalid";
+const safePath = (raw: string | undefined): string => {
+  if (raw === undefined || !raw.startsWith("/")) return "/";
+  try {
+    const u = new URL(raw, SAFE_PATH_BASE);
+    if (u.origin !== SAFE_PATH_BASE) return "/";
+    return `${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return "/";
+  }
+};
 
 export type SsoGrantDeps = {
   session: SessionReader;
@@ -32,21 +44,28 @@ export const createSsoGrant = (deps: SsoGrantDeps) =>
     const app = await deps.service.findBySlug(sub.label);
     if (app === null || app.shareMode !== "google") return c.text("Not found", 404);
 
+    // Build every onward URL from the validated label and the apex's own host —
+    // NEVER from the raw `app` query. `parseSubdomain` strips a port at the first
+    // ":", so reflecting `appHost` would let `slug.${root}:x@evil.com` smuggle a
+    // userinfo authority and leak the one-time code to evil.com. Tenants share the
+    // apex scheme + host:port (https in prod behind Caddy, http://*.localhost:5173
+    // in dev), so `${label}.${apex.host}` is the canonical tenant origin.
+    const apex = new URL(deps.apexBaseUrl);
+    const appOrigin = `${apex.protocol}//${sub.label}.${apex.host}`;
+
     const session = await deps.session.getSession({ headers: c.req.raw.headers });
     if (!session?.user) {
       // A RELATIVE apex path so the SPA sign-in (which only honours same-origin
       // path `next` values) returns here to finish the handoff after Google.
-      const self = `/sso/grant?app=${encodeURIComponent(appHost)}&next=${encodeURIComponent(next)}`;
+      const self = `/sso/grant?app=${encodeURIComponent(`${sub.label}.${apex.host}`)}&next=${encodeURIComponent(next)}`;
       return c.redirect(
         `${deps.apexBaseUrl}${deps.signInPath}?next=${encodeURIComponent(self)}`,
         302,
       );
     }
     const code = await deps.service.createSsoCode(app.id, parseUserId(session.user.id));
-    // Tenants share the apex's scheme (https in prod behind Caddy, http in local dev).
-    const scheme = new URL(deps.apexBaseUrl).protocol;
     return c.redirect(
-      `${scheme}//${appHost}/sso/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`,
+      `${appOrigin}/sso/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`,
       302,
     );
   });
