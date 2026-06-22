@@ -22,6 +22,10 @@ header. To front it with **any** proxy you need three things:
    - `*.quick.example.com` → `127.0.0.1:8003`
 3. Provide TLS for both names. A deployed app lives at `<slug>.quick.example.com`,
    so you need a cert that covers the wildcard.
+4. Do **not** expose `/_internal/*` to the public. It's the loopback `ask` route
+   (below); answering it publicly turns it into a deployed-slug oracle. This
+   recipe's Caddyfile returns `404` for `/_internal/*` on both vhosts; nginx/Traefik
+   users should add the equivalent deny.
 
 How you do step 3 depends on the proxy:
 

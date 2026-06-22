@@ -2,14 +2,11 @@ import type { Context } from "hono";
 import { isUsableSlug, parseSubdomain } from "../../shared/index.ts";
 import type { AppRegistry } from "../tenant.ts";
 
-// On-demand TLS gate for a fronting Caddy: it calls this unauthenticated before
-// minting a per-subdomain certificate, treating 2xx as "issue" and anything else
-// as "refuse". Allowing only the apex and slugs that resolve to a real deployed
-// app stops Caddy from being coaxed into issuing certs for arbitrary hostnames
-// aimed at the IP (a Let's Encrypt rate-limit / abuse vector). The hostname comes
-// from the `domain` query param, not the Host header: Caddy reaches this route
-// over a loopback reverse-proxy, so its Host is the upstream address, not the SNI.
-// Fail-closed — any thrown error becomes a non-2xx and Caddy declines to issue.
+// Caddy's on-demand-TLS `ask` hook (unauthenticated): 2xx means "issue this cert".
+// The SNI host arrives in `?domain`, NOT the Host header, because Caddy reaches this
+// over a loopback proxy whose Host is the upstream address. Answering only for the
+// apex + resolvable slugs stops cert issuance for arbitrary hostnames aimed at the
+// IP (a Let's Encrypt rate-limit abuse vector).
 export const createTlsCheck =
   (deps: { rootDomain: string; registry: AppRegistry }) =>
   async (c: Context): Promise<Response> => {

@@ -20,7 +20,14 @@
 		Referrer-Policy no-referrer
 		Permissions-Policy "geolocation=(), microphone=(), camera=()"
 	}
-	reverse_proxy @@APP_ADDR@@
+	# The on-demand `ask` endpoint is for Caddy's own loopback call only; never
+	# expose it through the public vhost (it would be a deployed-slug oracle).
+	handle /_internal/* {
+		respond 404
+	}
+	handle {
+		reverse_proxy @@APP_ADDR@@
+	}
 }
 
 # Deployed apps on wildcard subdomains. `on_demand` issues a per-subdomain cert via
@@ -39,8 +46,13 @@
 		Referrer-Policy no-referrer
 		Permissions-Policy "geolocation=(), microphone=(), camera=()"
 	}
-	reverse_proxy @@APP_ADDR@@ {
-		header_up Host {host}
+	handle /_internal/* {
+		respond 404
+	}
+	handle {
+		reverse_proxy @@APP_ADDR@@ {
+			header_up Host {host}
+		}
 	}
 }
 # <<< quick END (managed by deploy/vps/setup.sh — do not edit between markers) <<<

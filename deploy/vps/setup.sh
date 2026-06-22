@@ -44,7 +44,7 @@ load_config() {
 
   [[ -n "$QUICK_DOMAIN" && "$QUICK_DOMAIN" != "$PLACEHOLDER_DOMAIN" ]] \
     || die "set QUICK_DOMAIN in $CONF (copy quick.conf.example) or pass QUICK_DOMAIN=... — refusing to run with the placeholder"
-  [[ "$QUICK_DOMAIN" =~ ^[a-z0-9.-]+\.[a-z]{2,}$ ]] || die "QUICK_DOMAIN '$QUICK_DOMAIN' does not look like a domain"
+  [[ "$QUICK_DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$ ]] || die "QUICK_DOMAIN '$QUICK_DOMAIN' does not look like a domain"
   [[ "$APP_PORT" =~ ^[0-9]+$ ]] || die "APP_PORT must be numeric, got '$APP_PORT'"
 }
 
@@ -145,8 +145,10 @@ configure_caddy() {
   candidate="$(mktemp)"
   cp "$CADDYFILE" "$candidate"
 
-  if grep -q 'on_demand_tls' "$candidate"; then
-    log "on_demand_tls already configured; global block left as-is"
+  if grep -qF "ask ${ASK_URL}" "$candidate"; then
+    log "Quick's on_demand_tls ask already present; global block left as-is"
+  elif grep -q 'on_demand_tls' "$candidate"; then
+    die "host Caddy already has a global on_demand_tls with a different ask endpoint. Caddy allows only ONE; merge Quick's ask ($ASK_URL) into the existing block by hand (or remove it), then re-run. Refusing to touch it."
   else
     tmp="$(mktemp)"
     if first_real_line_is_brace "$candidate"; then
@@ -220,7 +222,9 @@ $(log "setup complete — remaining MANUAL steps:")
 
   2. GitHub -> repo Settings -> Environments -> 'production' -> add secrets:
        VPS_HOST    = $PUBLIC_IP
-       VPS_SSH_KEY = the PRIVATE key below (whole block, incl. BEGIN/END lines)
+       VPS_SSH_KEY = the PRIVATE key at $OPT_DIR/.ssh/id_ed25519 (whole block,
+                     incl. BEGIN/END lines). Print it deliberately when ready:
+                       sudo cat $OPT_DIR/.ssh/id_ed25519
 
   3. DNS at your registrar — confirm A records for the apex AND the wildcard:
        $QUICK_DOMAIN        ->  $PUBLIC_IP
@@ -236,10 +240,6 @@ $(log "setup complete — remaining MANUAL steps:")
        curl -I https://$QUICK_DOMAIN/
        sudo -u $DEPLOY_USER docker compose -f $OPT_DIR/compose.yaml ps
        caddy validate --config $CADDYFILE --adapter caddyfile
-
-  -------- VPS_SSH_KEY (private — also at $OPT_DIR/.ssh/id_ed25519) --------
-$(cat "$OPT_DIR/.ssh/id_ed25519")
-  -------- end VPS_SSH_KEY --------
 BANNER
 }
 

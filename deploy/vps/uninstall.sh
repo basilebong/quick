@@ -29,8 +29,11 @@ conf_get() {
 
 load_config() {
   DEPLOY_USER="${DEPLOY_USER:-$(conf_get DEPLOY_USER)}"; DEPLOY_USER="${DEPLOY_USER:-quick}"
+  APP_PORT="${APP_PORT:-$(conf_get APP_PORT)}";         APP_PORT="${APP_PORT:-8003}"
   OPT_DIR="${OPT_DIR:-/opt/${DEPLOY_USER}}"
+  ASK_PATH="${ASK_PATH:-/_internal/tls-check}"
   CADDYFILE="${CADDYFILE:-/etc/caddy/Caddyfile}"
+  ASK_URL="http://127.0.0.1:${APP_PORT}${ASK_PATH}"
 }
 
 parse_args() {
@@ -62,10 +65,11 @@ stop_stack() {
   fi
 }
 
-# Drop the marker region AND the on_demand_tls block from the global options, then
-# validate the candidate BEFORE swapping it in.
+# Drop the marker region AND Quick's own on_demand_tls block (matched by its ask
+# URL, so an operator's pre-existing block is left intact), then validate the
+# candidate BEFORE swapping it in.
 revert_caddy() {
-  if ! grep -qF "$MARKER_BEGIN" "$CADDYFILE" && ! grep -q 'on_demand_tls' "$CADDYFILE"; then
+  if ! grep -qF "$MARKER_BEGIN" "$CADDYFILE" && ! grep -qF "ask ${ASK_URL}" "$CADDYFILE"; then
     log "no Quick Caddy blocks present; nothing to revert"
     return 0
   fi
@@ -76,21 +80,23 @@ revert_caddy() {
     /# >>> quick BEGIN/ { skip=1 }
     skip { next }
     { print }
-  ' "$CADDYFILE" | awk '
+  ' "$CADDYFILE" | awk -v ask="ask ${ASK_URL}" '
     {
-      if (rm) {
+      if (inblk) {
+        buf = buf $0 "\n"
         for (i=1;i<=length($0);i++){c=substr($0,i,1); if(c=="{")d++; else if(c=="}")d--}
-        if (d<=0) rm=0
+        if (d<=0) { if (index(buf, ask)==0) printf "%s", buf; buf=""; inblk=0 }
         next
       }
       if ($0 ~ /^[[:space:]]*on_demand_tls[[:space:]]*\{/) {
-        d=0
+        inblk=1; d=0; buf=$0 "\n"
         for (i=1;i<=length($0);i++){c=substr($0,i,1); if(c=="{")d++; else if(c=="}")d--}
-        if (d>0) rm=1
+        if (d<=0) { if (index(buf, ask)==0) printf "%s", buf; buf=""; inblk=0 }
         next
       }
       print
     }
+    END { if (inblk) printf "%s", buf }
   ' > "$candidate"
 
   if ! caddy validate --config "$candidate" --adapter caddyfile >/dev/null 2>&1; then
