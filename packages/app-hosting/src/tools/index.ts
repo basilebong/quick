@@ -1,6 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AuditRecorder } from "@quick/core/server";
-import { type UserId, parseShareLinkId } from "@quick/core/shared";
+import {
+  type AppId,
+  type ShareMode,
+  type UserId,
+  parseAppId,
+  parseShareLinkId,
+} from "@quick/core/shared";
 import { match } from "ts-pattern";
 import * as z from "zod";
 import type { HostingService } from "../server/index.ts";
@@ -92,6 +98,61 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       return {
         content: [{ type: "text" as const, text: `Created app "${slug}" (${shareMode}).` }],
         structuredContent: { app: r.value },
+      };
+    },
+  );
+
+  server.registerTool(
+    "quick__deploy_html",
+    {
+      title: "Deploy an HTML page",
+      description:
+        'Publish a single HTML page as an app and make it live immediately at its URL. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug adds a version and keeps its current share mode. For multi-file or binary apps, use the `quick` CLI.',
+      inputSchema: {
+        slug: z.string().min(1).max(63),
+        html: z.string().min(1),
+        shareMode: z.enum(["google", "link"]).optional(),
+      },
+    },
+    async ({ slug, html, shareMode }) => {
+      const existing = await service.findBySlug(slug);
+      let appId: AppId;
+      let mode: ShareMode;
+      if (existing === null) {
+        const created = await service.createApp(
+          { slug, name: slug, shareMode: shareMode ?? "google" },
+          actor,
+        );
+        if (created.kind === "err") return errorResult(created.error);
+        appId = parseAppId(created.value.id);
+        mode = created.value.shareMode;
+      } else {
+        appId = existing.id;
+        mode = existing.shareMode;
+      }
+
+      const files = [{ path: "index.html", bytes: new TextEncoder().encode(html) }];
+      const r = await service.createDeployment(appId, files, actor);
+      if (r.kind === "err") return errorResult(r.error);
+
+      await safely(
+        "audit",
+        audit.record({
+          userId: actor,
+          action: "quick__deploy_html",
+          via: "mcp",
+          metadata: { slug, version: r.value.version },
+        }),
+      );
+      const url = appUrl(slug);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Deployed v${r.value.version} of "${slug}" (${mode}) → ${url}`,
+          },
+        ],
+        structuredContent: { url, shareMode: mode, deployment: r.value },
       };
     },
   );
