@@ -1,0 +1,48 @@
+services:
+  app:
+    profiles: [prod]
+    image: ghcr.io/basilebong/quick:latest
+    restart: always
+    env_file: .env
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:${APP_PORT:-8003}:3000"
+
+  # Replicates the SQLite db (including inline file BLOBs) to object storage.
+  litestream:
+    profiles: [prod]
+    image: litestream/litestream:0.3.13
+    restart: always
+    volumes:
+      - ./data:/data
+      - ./litestream.yml:/etc/litestream.yml:ro
+    environment:
+      - LITESTREAM_ACCESS_KEY_ID=${STORAGE_BOX_KEY}
+      - LITESTREAM_SECRET_ACCESS_KEY=${STORAGE_BOX_SECRET}
+      - STORAGE_BOX_ENDPOINT=${STORAGE_BOX_ENDPOINT:-fsn1.your-objectstorage.com}
+      - STORAGE_BOX_BUCKET=${STORAGE_BOX_BUCKET:-quick-backup}
+    command: replicate
+
+  # Litestream only covers the db; deployed bundles + uploaded files live under
+  # /data/apps, so back them up daily with restic (encrypted, deduped).
+  apps-backup:
+    profiles: [prod]
+    image: restic/restic:0.17.3
+    restart: always
+    volumes:
+      - ./data:/data:ro
+    environment:
+      - RESTIC_REPOSITORY=${RESTIC_REPOSITORY}
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${STORAGE_BOX_KEY}
+      - AWS_SECRET_ACCESS_KEY=${STORAGE_BOX_SECRET}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        restic snapshots >/dev/null 2>&1 || restic init;
+        while true; do
+          restic backup /data/apps --tag apps --host quick || true;
+          restic forget --keep-daily 30 --prune || true;
+          sleep 86400;
+        done
