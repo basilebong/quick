@@ -25,7 +25,7 @@ REMOVE_USER=0
 
 conf_get() {
   [[ -f "$CONF" ]] || return 0
-  sed -n "s/^[[:space:]]*${1}=//p" "$CONF" | tail -n1
+  sed -n "s/^[[:space:]]*${1}=//p" "$CONF" | tail -n1 | tr -d '\r'
 }
 
 load_config() {

@@ -30,7 +30,7 @@ die()  { printf '\033[1;31m[setup] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 # ---- configuration (quick.conf, overridable by env) ------------------------
 conf_get() {
   [[ -f "$CONF" ]] || return 0
-  sed -n "s/^[[:space:]]*${1}=//p" "$CONF" | tail -n1
+  sed -n "s/^[[:space:]]*${1}=//p" "$CONF" | tail -n1 | tr -d '\r'
 }
 
 load_config() {
@@ -47,7 +47,8 @@ load_config() {
   [[ -n "$QUICK_DOMAIN" && "$QUICK_DOMAIN" != "$PLACEHOLDER_DOMAIN" ]] \
     || die "set QUICK_DOMAIN in $CONF (copy quick.conf.example) or pass QUICK_DOMAIN=... — refusing to run with the placeholder"
   [[ "$QUICK_DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$ ]] || die "QUICK_DOMAIN '$QUICK_DOMAIN' does not look like a domain"
-  [[ "$APP_PORT" =~ ^[0-9]+$ ]] || die "APP_PORT must be numeric, got '$APP_PORT'"
+  [[ "$APP_PORT" =~ ^[0-9]+$ && "$APP_PORT" -ge 1 && "$APP_PORT" -le 65535 ]] || die "APP_PORT must be a port in 1-65535, got '$APP_PORT'"
+  [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "DEPLOY_USER '$DEPLOY_USER' is not a valid system username"
 }
 
 # ---- preflight -------------------------------------------------------------

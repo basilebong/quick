@@ -6,7 +6,7 @@
 # merged into the existing one rather than added here):
 #     on_demand_tls { ask @@ASK_URL@@ }
 # Caddy calls GET <ask>?domain=<sni-host> before issuing an on-demand cert; the app
-# answers 2xx only for the apex + real deployed slugs (tls-check.ts), so certs are
+# answers 2xx only for the apex + registered slugs (tls-check.ts), so certs are
 # never minted for arbitrary hostnames aimed at the IP.
 
 # Apex: dashboard + owner API + MCP. Cert via the normal HTTP-01 managed flow.
