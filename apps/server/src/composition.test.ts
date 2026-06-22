@@ -135,4 +135,28 @@ describe("composition (tenancy + CSRF wiring)", () => {
       expect(res.headers.get("location") ?? "").toContain("/sso/grant");
     });
   });
+
+  test("on-demand TLS ask endpoint answers unauthenticated and gates on the registry", async () => {
+    await withTestAuth({ baseURL: BASE }, async ({ auth, db, signSessionCookie }) => {
+      const { app, hosting, ownerId } = await build(auth, db, signSessionCookie);
+      const created = await hosting.createApp(
+        { slug: "acme", name: "Acme", shareMode: "google" },
+        ownerId,
+      );
+      if (created.kind !== "ok") throw new Error("createApp failed");
+
+      // Caddy reaches this over the loopback proxy, so Host is the upstream
+      // address and the SNI name is in ?domain. A google-mode app proves the
+      // route runs ahead of the share gate (which would otherwise 302 to grant).
+      const askFor = (domain: string) =>
+        app.request(`http://127.0.0.1:3000/_internal/tls-check?domain=${domain}`, {
+          headers: { host: "127.0.0.1:3000" },
+        });
+
+      expect((await askFor("acme.quick.example.com")).status).toBe(200);
+      expect((await askFor("quick.example.com")).status).toBe(200);
+      expect((await askFor("ghost.quick.example.com")).status).toBe(404);
+      expect((await askFor("evil.example.com")).status).toBe(404);
+    });
+  });
 });

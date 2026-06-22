@@ -30,6 +30,7 @@ import {
   createOriginCheck,
   createResolveApp,
   createShareGate,
+  createTlsCheck,
 } from "@quick/core/server";
 import type { UserId } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
@@ -142,6 +143,7 @@ export const createApp = (o: ComposeOptions) => {
   return new Hono<{ Variables: TenantVariables }>()
     .use("*", logger())
     .get("/healthz", (c) => c.json({ ok: true }))
+    .get("/_internal/tls-check", createTlsCheck({ rootDomain: o.rootDomain, registry: o.hosting }))
     .use("*", createResolveApp({ rootDomain: o.rootDomain, registry: o.hosting }))
     .all("*", (c) => {
       const t = c.var.tenant;
