@@ -53,8 +53,8 @@ export const ConsentScreen = (): React.ReactElement => {
   };
 
   return (
-    <main className="flex min-h-dvh flex-col bg-slate-50 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-      <div className="flex flex-1 flex-col px-6 pt-16 pb-10">
+    <main className="flex min-h-dvh flex-col bg-slate-50 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:items-center sm:justify-center">
+      <div className="flex w-full flex-1 flex-col px-6 pt-16 pb-10 sm:max-w-md sm:flex-none sm:py-12">
         <Wordmark />
 
         <div className="mt-10 inline-grid size-12 place-items-center rounded-2xl bg-slate-900 text-white">
@@ -88,9 +88,9 @@ export const ConsentScreen = (): React.ReactElement => {
           </div>
         ) : null}
 
-        <div className="flex-1" />
+        <div className="flex-1 sm:hidden" />
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:mt-9">
           <Button
             type="button"
             onClick={() => decide(true)}

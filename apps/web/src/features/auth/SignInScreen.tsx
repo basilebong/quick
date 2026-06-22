@@ -5,6 +5,7 @@ import { match } from "ts-pattern";
 import { signInWithGoogle } from "@/lib/auth-client";
 import { signInRoute } from "@/router";
 
+import { AuthShowcase } from "./atoms/AuthShowcase";
 import { GoogleButton } from "./atoms/GoogleButton";
 import { LoginScaffold } from "./atoms/LoginScaffold";
 
@@ -46,7 +47,8 @@ export const SignInScreen = (): React.ReactElement => {
   };
 
   return (
-    <main className="flex min-h-dvh flex-col bg-slate-50 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <main className="flex min-h-dvh flex-col bg-slate-50 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:grid lg:grid-cols-2 lg:pt-0 lg:pb-0">
+      <AuthShowcase />
       <LoginScaffold footnote={status.kind !== "error"}>
         {match(status)
           .with({ kind: "error" }, ({ reason }) => {
