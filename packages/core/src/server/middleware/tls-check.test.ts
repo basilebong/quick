@@ -34,7 +34,7 @@ describe("on-demand TLS ask endpoint", () => {
     expect((await ask(build(), ROOT)).status).toBe(200);
   });
 
-  test("a slug that resolves to a deployed app is allowed", async () => {
+  test("a slug that resolves to a registered app is allowed (incl. before its first deploy)", async () => {
     expect((await ask(build(new Set(["acme"])), `acme.${ROOT}`)).status).toBe(200);
   });
 

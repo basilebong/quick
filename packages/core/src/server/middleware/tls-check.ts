@@ -5,8 +5,10 @@ import type { AppRegistry } from "../tenant.ts";
 // Caddy's on-demand-TLS `ask` hook (unauthenticated): 2xx means "issue this cert".
 // The SNI host arrives in `?domain`, NOT the Host header, because Caddy reaches this
 // over a loopback proxy whose Host is the upstream address. Answering only for the
-// apex + resolvable slugs stops cert issuance for arbitrary hostnames aimed at the
-// IP (a Let's Encrypt rate-limit abuse vector).
+// apex + registered slugs stops cert issuance for arbitrary hostnames aimed at the
+// IP (a Let's Encrypt rate-limit abuse vector). A registered slug is allowed even
+// before its first deploy on purpose: an undeployed app still serves a real
+// "Nothing deployed yet" page (app-hosting static.ts) that must be reachable over TLS.
 export const createTlsCheck =
   (deps: { rootDomain: string; registry: AppRegistry }) =>
   async (c: Context): Promise<Response> => {
