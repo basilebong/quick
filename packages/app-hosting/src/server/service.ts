@@ -195,6 +195,9 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
       });
     },
 
+    // Not scoped by owner: allowlisted owners are co-equal operators who manage
+    // every app. `ownerUserId` is attribution, not an authz boundary. See
+    // .claude/rules/security.md (Owner gating).
     async listApps() {
       const rows = await db.select().from(apps).orderBy(desc(apps.createdAt));
       return rows.map(rowToAppSummary);

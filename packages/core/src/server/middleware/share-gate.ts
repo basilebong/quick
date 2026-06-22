@@ -75,7 +75,15 @@ export const createShareGate = (deps: ShareGateDeps) =>
       }
       // No host-only app session: hand off to the apex one-time-code grant. The
       // apex (where the Better Auth session lives) mints a code; /sso/callback on
-      // this host then sets quick_app_sess and returns the browser here.
+      // this host then sets quick_app_sess and returns the browser here. Only a
+      // top-level navigation is redirected — a non-navigation request (XHR/fetch/
+      // subresource) gets a 401 so app code can re-auth instead of chasing a
+      // cross-origin redirect to an HTML page. Absent Sec-Fetch metadata (older
+      // browsers) is treated as a navigation so sign-in still works.
+      const dest = c.req.header("sec-fetch-dest");
+      if (dest !== undefined && dest !== "document") {
+        return c.json({ error: "unauthorized" }, 401);
+      }
       const u = new URL(c.req.url);
       const nextPath = `${u.pathname}${u.search}`;
       return c.redirect(

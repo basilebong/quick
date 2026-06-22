@@ -34,3 +34,11 @@ HARD rules for Quick, on top of the constitution.
 - Any Google account may sign in (to view a google-mode app). Owner-only surfaces
   (dashboard, deploy API, MCP tools) are gated PER REQUEST against
   `QUICK_ALLOWED_EMAILS` (`createRequireOwner` / `createOwnerAuth`), never at sign-up.
+- The allowlist is the ONLY owner trust boundary: every allowlisted email is a
+  co-equal operator of the instance and can manage every app. There is no per-app
+  owner isolation — `apps.ownerUserId` is attribution (who created an app), NOT an
+  authorization check, and the dashboard lists every app to every owner. Deploy as
+  a single operator or a set of mutually trusting co-admins. Per-owner isolation
+  (scoping each app to its creator) would be a deliberate future feature, not a
+  bug in this model; do not "fix" it by adding owner filters to the app queries —
+  that would break the all-apps dashboard listing.
