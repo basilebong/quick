@@ -8,6 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { type Auth, createAuditRecorder } from "@quick/core/server";
 import { withTestAuth } from "@quick/core/server/test";
 import { parseUserId } from "@quick/core/shared";
+import { DEPLOY_MAX_TOTAL_BYTES } from "../server/deploy.ts";
 import { createHostingService } from "../server/index.ts";
 import { registerHostingTools } from "./index.ts";
 
@@ -55,6 +56,8 @@ describe("quick__deploy_html", () => {
       expect(res.isError ?? false).toBe(false);
       expect(textOf(res.content)).toContain("https://landing.quick.example.com");
       expect(textOf(res.content)).toContain("v1");
+      expect(textOf(res.content)).toContain("(google)");
+      expect(res.structuredContent).toMatchObject({ shareMode: "google" });
 
       const app = await h.service.findBySlug("landing");
       expect(app).not.toBeNull();
@@ -97,6 +100,8 @@ describe("quick__deploy_html", () => {
 
       expect(res.isError ?? false).toBe(false);
       expect(textOf(res.content)).toContain("v2");
+      expect(textOf(res.content)).toContain("(link)");
+      expect(res.structuredContent).toMatchObject({ shareMode: "link" });
 
       const second = await h.service.findBySlug("site");
       expect(second?.shareMode).toBe("link");
@@ -120,6 +125,30 @@ describe("quick__deploy_html", () => {
 
       expect(res.isError ?? false).toBe(true);
       expect(await h.service.findBySlug("mcp")).toBeNull();
+    });
+  });
+
+  test("rejects an oversized page and leaves the live deployment untouched", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+
+      await h.client.callTool({
+        name: "quick__deploy_html",
+        arguments: { slug: "big", html: "<!doctype html>ok" },
+      });
+      const before = await h.service.findBySlug("big");
+      if (before === null) throw new Error("app not created");
+      const live = before.currentDeploymentId;
+
+      const res = await h.client.callTool({
+        name: "quick__deploy_html",
+        arguments: { slug: "big", html: "x".repeat(DEPLOY_MAX_TOTAL_BYTES + 1) },
+      });
+
+      expect(res.isError ?? false).toBe(true);
+      const after = await h.service.findBySlug("big");
+      expect(after?.currentDeploymentId).toBe(live);
+      expect((await h.service.listDeployments(before.id)).length).toBe(1);
     });
   });
 });

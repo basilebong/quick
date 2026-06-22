@@ -1,6 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AuditRecorder } from "@quick/core/server";
-import { type AppId, type UserId, parseAppId, parseShareLinkId } from "@quick/core/shared";
+import {
+  type AppId,
+  type ShareMode,
+  type UserId,
+  parseAppId,
+  parseShareLinkId,
+} from "@quick/core/shared";
 import { match } from "ts-pattern";
 import * as z from "zod";
 import type { HostingService } from "../server/index.ts";
@@ -101,7 +107,7 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
     {
       title: "Deploy an HTML page",
       description:
-        "Publish a single HTML page as an app and make it live immediately at its URL. Creates the app if the slug is new (default share mode: google). For multi-file or binary apps, use the `quick` CLI.",
+        'Publish a single HTML page as an app and make it live immediately at its URL. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug adds a version and keeps its current share mode. For multi-file or binary apps, use the `quick` CLI.',
       inputSchema: {
         slug: z.string().min(1).max(63),
         html: z.string().min(1),
@@ -111,6 +117,7 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
     async ({ slug, html, shareMode }) => {
       const existing = await service.findBySlug(slug);
       let appId: AppId;
+      let mode: ShareMode;
       if (existing === null) {
         const created = await service.createApp(
           { slug, name: slug, shareMode: shareMode ?? "google" },
@@ -118,8 +125,10 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
         );
         if (created.kind === "err") return errorResult(created.error);
         appId = parseAppId(created.value.id);
+        mode = created.value.shareMode;
       } else {
         appId = existing.id;
+        mode = existing.shareMode;
       }
 
       const files = [{ path: "index.html", bytes: new TextEncoder().encode(html) }];
@@ -138,9 +147,12 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       const url = appUrl(slug);
       return {
         content: [
-          { type: "text" as const, text: `Deployed v${r.value.version} of "${slug}" → ${url}` },
+          {
+            type: "text" as const,
+            text: `Deployed v${r.value.version} of "${slug}" (${mode}) → ${url}`,
+          },
         ],
-        structuredContent: { url, deployment: r.value },
+        structuredContent: { url, shareMode: mode, deployment: r.value },
       };
     },
   );
