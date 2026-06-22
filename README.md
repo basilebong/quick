@@ -2,7 +2,7 @@
 
 A self-hosted **"drop a folder, get a secure URL"** platform for sharing static apps with clients,
 behind per-app access control. Inspired by Shopify's [Quick](https://shopify.engineering/quick),
-built on the [onehouse](https://github.com/basilebong) stack (Bun · Hono · React · SQLite).
+built on Bun · Hono · React · SQLite.
 
 ## What it does
 
