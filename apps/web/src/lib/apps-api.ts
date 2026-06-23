@@ -9,6 +9,7 @@ export const AppSummarySchema = v.object({
   slug: v.string(),
   name: v.string(),
   shareMode: ShareModeSchema,
+  allowedEmails: v.array(v.string()),
   currentDeploymentId: v.nullable(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -27,6 +28,7 @@ export type CreateAppBody = {
 export type UpdateAppBody = {
   name?: string;
   shareMode?: AppSummary["shareMode"];
+  allowedEmails?: string[];
 };
 
 export const createApp = async (input: CreateAppBody): Promise<AppSummary> => {

@@ -5,6 +5,7 @@ export type AppSummary = {
   slug: string;
   name: string;
   shareMode: ShareMode;
+  allowedEmails: string[];
   currentDeploymentId: string | null;
   createdAt: number;
   updatedAt: number;

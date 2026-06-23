@@ -26,11 +26,12 @@ export const rowToAppContext = (row: AppRow): AppContext => ({
     row.currentDeploymentId === null ? null : parseDeploymentId(row.currentDeploymentId),
 });
 
-export const rowToAppSummary = (row: AppRow): AppSummary => ({
+export const rowToAppSummary = (row: AppRow, allowedEmails: string[]): AppSummary => ({
   id: row.id,
   slug: row.slug,
   name: row.name,
   shareMode: shareModeOf(row.shareMode),
+  allowedEmails,
   currentDeploymentId: row.currentDeploymentId,
   createdAt: row.createdAt.getTime(),
   updatedAt: row.updatedAt.getTime(),

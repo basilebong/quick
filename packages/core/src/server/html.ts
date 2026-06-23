@@ -27,3 +27,9 @@ export const linkAccessPage = (kind: "expired" | "missing"): string =>
         "Link required",
         "<h1>A share link is required</h1><p>This app is shared privately by secret link. Open the full link you were given.</p>",
       );
+
+export const googleAccessDeniedPage = (email: string): string =>
+  page(
+    "Access denied",
+    `<h1>You don't have access to this app</h1><p>You're signed in as <code>${escapeHtml(email)}</code>, which isn't on this app's allowlist. Ask the owner to add you.</p>`,
+  );

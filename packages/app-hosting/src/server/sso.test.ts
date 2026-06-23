@@ -124,6 +124,35 @@ describe("sso handoff", () => {
     });
   });
 
+  test("a signed-in viewer off the app's email allowlist is denied a code (403, no redirect)", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const set = await h.service.updateApp(h.appCtx.id, {
+        allowedEmails: ["someone-else@example.com"],
+      });
+      if (set.kind !== "ok") throw new Error("set allowlist failed");
+      const res = await h.apex.request(`/sso/grant?app=${APP_HOST}&next=%2F`, {
+        headers: { cookie: h.cookie },
+      });
+      expect(res.status).toBe(403);
+      expect(res.headers.get("location")).toBeNull();
+    });
+  });
+
+  test("a signed-in viewer on the app's email allowlist is still granted a code", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.service.updateApp(h.appCtx.id, { allowedEmails: ["v@example.com"] });
+      const res = await h.apex.request(`/sso/grant?app=${APP_HOST}&next=%2F`, {
+        headers: { cookie: h.cookie },
+      });
+      expect(res.status).toBe(302);
+      expect(
+        (res.headers.get("location") ?? "").startsWith(`https://${APP_HOST}/sso/callback?`),
+      ).toBe(true);
+    });
+  });
+
   test("a non-existent or non-app host is rejected (no open redirect)", async () => {
     await withTestAuth({}, async (ctx) => {
       const h = await setup(ctx);

@@ -21,6 +21,7 @@ const appCtx = (shareMode: "google" | "link"): AppContext => ({
 const resolver = (over: Partial<ShareResolver> = {}): ShareResolver => ({
   validateLinkToken: async () => ({ kind: "invalid" }),
   validateAppSession: async () => null,
+  isEmailAllowedForApp: async () => true,
   recordAccess: async () => {},
   ...over,
 });
@@ -75,6 +76,42 @@ describe("share gate", () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("APP");
     expect(seenAppId).toBe("app_1");
+  });
+
+  test("google mode with a valid session but an email off the per-app allowlist is denied (403) and not admitted", async () => {
+    let recordedEvent = "";
+    const r = resolver({
+      validateAppSession: async () => ({ userId: "u1", email: "stranger@b.co", name: "S" }),
+      isEmailAllowedForApp: async () => false,
+      recordAccess: async (entry) => {
+        recordedEvent = entry.event;
+      },
+    });
+    const res = await build({ kind: "app", app: appCtx("google") }, r).request(
+      "https://acme.quick.example.com/",
+      { headers: { cookie: `${APP_SESSION_COOKIE}=tok`, "sec-fetch-dest": "document" } },
+    );
+    expect(res.status).toBe(403);
+    expect(await res.text()).not.toBe("APP");
+    expect(recordedEvent).toBe("denied");
+  });
+
+  test("google mode with a valid session whose email is on the per-app allowlist admits", async () => {
+    let checkedEmail = "";
+    const r = resolver({
+      validateAppSession: async () => ({ userId: "u1", email: "client@b.co", name: "C" }),
+      isEmailAllowedForApp: async (_appId, email) => {
+        checkedEmail = email;
+        return email === "client@b.co";
+      },
+    });
+    const res = await build({ kind: "app", app: appCtx("google") }, r).request(
+      "https://acme.quick.example.com/",
+      { headers: { cookie: `${APP_SESSION_COOKIE}=tok` } },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("APP");
+    expect(checkedEmail).toBe("client@b.co");
   });
 
   test("google mode with a stale/invalid app session cookie redirects to grant (does not admit)", async () => {

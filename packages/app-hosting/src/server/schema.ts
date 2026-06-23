@@ -23,6 +23,25 @@ export const apps = sqliteTable(
   (t) => [index("apps_owner_idx").on(t.ownerUserId)],
 );
 
+// A google-mode app's viewer allowlist. Empty set ⇒ any signed-in Google account
+// may view; non-empty ⇒ only these emails. Emails are stored normalized
+// (trimmed, lowercased) and the access decision re-reads them every request.
+export const appAllowedEmails = sqliteTable(
+  "app_allowed_emails",
+  {
+    id: text("id").primaryKey(),
+    appId: text("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("app_allowed_emails_app_email_idx").on(t.appId, t.email),
+    index("app_allowed_emails_app_idx").on(t.appId),
+  ],
+);
+
 export const deployments = sqliteTable(
   "deployments",
   {
@@ -151,6 +170,7 @@ export const appSessionCodes = sqliteTable(
 );
 
 export type AppRow = typeof apps.$inferSelect;
+export type AppAllowedEmailRow = typeof appAllowedEmails.$inferSelect;
 export type DeploymentRow = typeof deployments.$inferSelect;
 export type ShareLinkRow = typeof shareLinks.$inferSelect;
 export type AccessLogRow = typeof accessLog.$inferSelect;

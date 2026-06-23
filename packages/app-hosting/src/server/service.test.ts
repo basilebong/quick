@@ -120,6 +120,56 @@ describe("hosting service", () => {
     expect(await service.verifyAccessToken("not-even-a-pat")).toBeNull();
   });
 
+  test("renames an app (display name) without touching its slug", async () => {
+    const app = await newApp("acme");
+    const appId = parseAppId(app.id);
+    const renamed = await service.updateApp(appId, { name: "Acme Corp" });
+    if (renamed.kind !== "ok") throw new Error("rename failed");
+    expect(renamed.value.name).toBe("Acme Corp");
+    expect(renamed.value.slug).toBe("acme");
+    const fetched = await service.getApp(appId);
+    expect(fetched.kind === "ok" && fetched.value.name).toBe("Acme Corp");
+  });
+
+  test("updateApp on a missing app is not_found", async () => {
+    const missing = await service.updateApp(parseAppId("app_missing"), { name: "x" });
+    expect(missing.kind === "err" && missing.error.kind).toBe("not_found");
+  });
+
+  test("per-app email allowlist: replace, expose on summary, and enforce membership", async () => {
+    const app = await newApp("acme", "google");
+    const appId = parseAppId(app.id);
+
+    expect(app.allowedEmails).toEqual([]);
+    expect(await service.isEmailAllowedForApp(appId, "anyone@example.com")).toBe(true);
+
+    const set = await service.updateApp(appId, {
+      allowedEmails: ["client@example.com", "team@example.com"],
+    });
+    if (set.kind !== "ok") throw new Error("set allowlist failed");
+    expect([...set.value.allowedEmails].sort()).toEqual(["client@example.com", "team@example.com"]);
+
+    expect(await service.isEmailAllowedForApp(appId, "client@example.com")).toBe(true);
+    expect(await service.isEmailAllowedForApp(appId, "CLIENT@example.com")).toBe(true);
+    expect(await service.isEmailAllowedForApp(appId, "stranger@example.com")).toBe(false);
+
+    const listed = (await service.listApps()).find((a) => a.id === app.id);
+    expect(listed?.allowedEmails.length).toBe(2);
+
+    const cleared = await service.updateApp(appId, { allowedEmails: [] });
+    expect(cleared.kind === "ok" && cleared.value.allowedEmails).toEqual([]);
+    expect(await service.isEmailAllowedForApp(appId, "stranger@example.com")).toBe(true);
+  });
+
+  test("an app's allowlist is scoped to that app", async () => {
+    const a = await newApp("app-a", "google");
+    const b = await newApp("app-b", "google");
+    await service.updateApp(parseAppId(a.id), { allowedEmails: ["only-a@example.com"] });
+    expect(await service.isEmailAllowedForApp(parseAppId(b.id), "only-a@example.com")).toBe(true);
+    expect(await service.isEmailAllowedForApp(parseAppId(a.id), "only-a@example.com")).toBe(true);
+    expect(await service.isEmailAllowedForApp(parseAppId(a.id), "only-b@example.com")).toBe(false);
+  });
+
   test("deleting an app removes its on-disk bundles", async () => {
     const app = await newApp("gone");
     const appId = parseAppId(app.id);

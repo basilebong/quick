@@ -39,6 +39,7 @@ import { ApiError } from "@/lib/http";
 import { fetchLinks, revokeLink } from "@/lib/links-api";
 import { queryKeys } from "@/lib/query-keys";
 
+import { AllowedEmailsCard } from "./AllowedEmailsCard";
 import { CreateLinkDrawer } from "./CreateLinkDrawer";
 
 const LinkStatusBadge = ({ link }: { link: ShareLinkView }): React.ReactElement => {
@@ -140,12 +141,7 @@ export const SharingTab = ({ app }: { app: AppSummary }): React.ReactElement => 
       </Card>
 
       {match(app.shareMode)
-        .with("google", () => (
-          <p className="px-1 text-muted-foreground text-sm">
-            Viewers sign in with Google. Switch to secret link to share with people who don't have
-            an account.
-          </p>
-        ))
+        .with("google", () => <AllowedEmailsCard app={app} />)
         .with("link", () => (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-3">

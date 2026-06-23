@@ -128,6 +128,45 @@ describe("quick__deploy_html", () => {
     });
   });
 
+  test("quick__set_allowed_emails restricts a google app, normalizes, and clears", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.client.callTool({
+        name: "quick__deploy_html",
+        arguments: { slug: "client-app", html: "<!doctype html>x" },
+      });
+      const app = await h.service.findBySlug("client-app");
+      if (app === null) throw new Error("app not created");
+
+      const set = await h.client.callTool({
+        name: "quick__set_allowed_emails",
+        arguments: { slug: "client-app", emails: ["Client@Example.com", "client@example.com"] },
+      });
+      expect(set.isError ?? false).toBe(false);
+      expect(set.structuredContent).toMatchObject({ allowedEmails: ["client@example.com"] });
+      expect(await h.service.isEmailAllowedForApp(app.id, "client@example.com")).toBe(true);
+      expect(await h.service.isEmailAllowedForApp(app.id, "stranger@example.com")).toBe(false);
+
+      const cleared = await h.client.callTool({
+        name: "quick__set_allowed_emails",
+        arguments: { slug: "client-app", emails: [] },
+      });
+      expect(cleared.isError ?? false).toBe(false);
+      expect(await h.service.isEmailAllowedForApp(app.id, "stranger@example.com")).toBe(true);
+    });
+  });
+
+  test("quick__set_allowed_emails on an unknown slug errors", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const res = await h.client.callTool({
+        name: "quick__set_allowed_emails",
+        arguments: { slug: "ghost", emails: ["a@b.com"] },
+      });
+      expect(res.isError ?? false).toBe(true);
+    });
+  });
+
   test("rejects an oversized page and leaves the live deployment untouched", async () => {
     await withTestAuth({}, async (ctx) => {
       const h = await setup(ctx);

@@ -1,4 +1,9 @@
-import { APP_SESSION_COOKIE, type SessionReader, type TenantVariables } from "@quick/core/server";
+import {
+  APP_SESSION_COOKIE,
+  type SessionReader,
+  type TenantVariables,
+  googleAccessDeniedPage,
+} from "@quick/core/server";
 import { isUsableSlug, parseSubdomain, parseUserId } from "@quick/core/shared";
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
@@ -24,7 +29,7 @@ const safePath = (raw: string | undefined): string => {
 
 export type SsoGrantDeps = {
   session: SessionReader;
-  service: Pick<HostingService, "findBySlug" | "createSsoCode">;
+  service: Pick<HostingService, "findBySlug" | "createSsoCode" | "isEmailAllowedForApp">;
   rootDomain: string;
   apexBaseUrl: string;
   signInPath: string;
@@ -62,6 +67,9 @@ export const createSsoGrant = (deps: SsoGrantDeps) =>
         `${deps.apexBaseUrl}${deps.signInPath}?next=${encodeURIComponent(self)}`,
         302,
       );
+    }
+    if (!(await deps.service.isEmailAllowedForApp(app.id, session.user.email))) {
+      return c.html(googleAccessDeniedPage(session.user.email), 403);
     }
     const code = await deps.service.createSsoCode(app.id, parseUserId(session.user.id));
     return c.redirect(
