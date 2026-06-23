@@ -1,7 +1,7 @@
 import { getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import type { Viewer } from "../../shared/index.ts";
-import { linkAccessPage } from "../html.ts";
+import { googleAccessDeniedPage, linkAccessPage } from "../html.ts";
 import type { ShareResolver, TenantVariables, ViewerVariables } from "../tenant.ts";
 
 // Remembers a redeemed link (the raw token). HOST-ONLY (no Domain) so it never
@@ -59,6 +59,19 @@ export const createShareGate = (deps: ShareGateDeps) =>
           email: session.email,
           name: session.name,
         };
+        if (!(await deps.resolver.isEmailAllowedForApp(app.id, session.email))) {
+          if (!isNavigation) return c.json({ error: "forbidden" }, 403);
+          await deps.resolver.recordAccess({
+            appId: app.id,
+            mode: "google",
+            viewer,
+            event: "denied",
+            path: c.req.path,
+            ip,
+            userAgent,
+          });
+          return c.html(googleAccessDeniedPage(session.email), 403);
+        }
         c.set("viewer", viewer);
         if (isNavigation) {
           await deps.resolver.recordAccess({

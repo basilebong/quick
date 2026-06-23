@@ -10,7 +10,7 @@ import {
 import { match } from "ts-pattern";
 import * as z from "zod";
 import type { HostingService } from "../server/index.ts";
-import type { HostingError } from "../shared/index.ts";
+import { type HostingError, MAX_ALLOWED_EMAILS } from "../shared/index.ts";
 
 // All hosting tools are OWNER-only; mcp.ts only registers them when the MCP
 // caller's identity is on the owner allowlist (any Google account can mint an
@@ -153,6 +153,42 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
           },
         ],
         structuredContent: { url, shareMode: mode, deployment: r.value },
+      };
+    },
+  );
+
+  server.registerTool(
+    "quick__set_allowed_emails",
+    {
+      title: "Set allowed emails",
+      description:
+        "Set the viewer email allowlist for a google-mode app (replaces the current list). Only these Google accounts may view it. Pass an empty list to allow any signed-in Google account.",
+      inputSchema: {
+        slug: z.string().min(1),
+        emails: z.array(z.string().trim().email().max(254)).max(MAX_ALLOWED_EMAILS),
+      },
+    },
+    async ({ slug, emails }) => {
+      const app = await service.findBySlug(slug);
+      if (app === null) return errorResult({ kind: "not_found" });
+      const r = await service.updateApp(app.id, { allowedEmails: emails });
+      if (r.kind === "err") return errorResult(r.error);
+      await safely(
+        "audit",
+        audit.record({
+          userId: actor,
+          action: "quick__set_allowed_emails",
+          via: "mcp",
+          metadata: { slug, count: r.value.allowedEmails.length },
+        }),
+      );
+      const text =
+        r.value.allowedEmails.length === 0
+          ? `Cleared the allowlist for ${slug}; any signed-in Google account can view it.`
+          : `${slug} is now restricted to ${r.value.allowedEmails.length} email(s).`;
+      return {
+        content: [{ type: "text" as const, text }],
+        structuredContent: { slug, allowedEmails: r.value.allowedEmails },
       };
     },
   );

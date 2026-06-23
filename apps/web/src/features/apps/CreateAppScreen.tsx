@@ -129,7 +129,7 @@ export const CreateAppScreen = (): React.ReactElement => {
           </Select>
           <p className="text-muted-foreground text-xs">
             {shareMode === "google"
-              ? "Viewers sign in with Google; only allowed accounts can open the app."
+              ? "Viewers sign in with Google. Restrict to specific emails from the app's Sharing tab."
               : "Anyone with an active secret link can open the app."}
           </p>
         </div>

@@ -51,5 +51,9 @@ export type AppSessionViewer = { userId: string; email: string; name: string };
 export type ShareResolver = {
   validateLinkToken(appId: AppId, rawToken: string): Promise<LinkValidation>;
   validateAppSession(appId: AppId, rawToken: string): Promise<AppSessionViewer | null>;
+  // A google-mode app may restrict viewers to an email allowlist. An empty
+  // allowlist admits any signed-in Google account; re-checked every request so a
+  // removed email loses access immediately. See .claude/rules/security.md.
+  isEmailAllowedForApp(appId: AppId, email: string): Promise<boolean>;
   recordAccess(entry: AccessEntry): Promise<void>;
 };

@@ -14,7 +14,7 @@ export {
 export { isAllowedEmail, parseAllowedEmails } from "./auth/allowlist.ts";
 export { type Auth, createAuth, type CreateAuthOptions } from "./auth/index.ts";
 export { createDb, type Db } from "./db/index.ts";
-export { escapeHtml, linkAccessPage, notFoundAppPage } from "./html.ts";
+export { escapeHtml, googleAccessDeniedPage, linkAccessPage, notFoundAppPage } from "./html.ts";
 export { createIdempotency, IDEMPOTENCY_SKIP_HEADER } from "./idempotency/middleware.ts";
 export {
   type AuthedMcpHandler,

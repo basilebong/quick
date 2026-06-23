@@ -28,6 +28,7 @@ import type {
   ShareLinkView,
   UpdateAppInput,
 } from "../shared/index.ts";
+import { normalizeEmail } from "../shared/index.ts";
 import {
   DEPLOY_MAX_FILES,
   DEPLOY_MAX_TOTAL_BYTES,
@@ -39,6 +40,7 @@ import {
 import {
   accessLog,
   accessTokens,
+  appAllowedEmails,
   appSessionCodes,
   appSessions,
   apps,
@@ -67,6 +69,7 @@ export type HostingService = {
   findBySlug(slug: string): Promise<AppContext | null>;
   // ShareResolver
   validateLinkToken(appId: AppId, rawToken: string): Promise<LinkValidation>;
+  isEmailAllowedForApp(appId: AppId, email: string): Promise<boolean>;
   recordAccess(entry: AccessEntry): Promise<void>;
   // apps
   listApps(): Promise<AppSummary[]>;
@@ -157,6 +160,14 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
     return rows[0];
   };
 
+  const allowedEmailsFor = async (appId: AppId): Promise<string[]> => {
+    const rows = await db
+      .select({ email: appAllowedEmails.email })
+      .from(appAllowedEmails)
+      .where(eq(appAllowedEmails.appId, appId));
+    return rows.map((r) => r.email);
+  };
+
   return {
     async findBySlug(slug) {
       const rows = await db.select().from(apps).where(eq(apps.slug, slug)).limit(1);
@@ -176,6 +187,11 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
       if (expiresAt <= Date.now()) return { kind: "expired" };
       await db.update(shareLinks).set({ lastUsedAt: new Date() }).where(eq(shareLinks.id, row.id));
       return { kind: "valid", linkId: parseShareLinkId(row.id), expiresAt };
+    },
+
+    async isEmailAllowedForApp(appId, email) {
+      const allowed = await allowedEmailsFor(appId);
+      return allowed.length === 0 || allowed.includes(normalizeEmail(email));
     },
 
     async recordAccess(entry) {
@@ -200,7 +216,16 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
     // .claude/rules/security.md (Owner gating).
     async listApps() {
       const rows = await db.select().from(apps).orderBy(desc(apps.createdAt));
-      return rows.map(rowToAppSummary);
+      const emailRows = await db
+        .select({ appId: appAllowedEmails.appId, email: appAllowedEmails.email })
+        .from(appAllowedEmails);
+      const byApp = new Map<string, string[]>();
+      for (const { appId, email } of emailRows) {
+        const list = byApp.get(appId);
+        if (list === undefined) byApp.set(appId, [email]);
+        else list.push(email);
+      }
+      return rows.map((row) => rowToAppSummary(row, byApp.get(row.id) ?? []));
     },
 
     async createApp(input, ownerId) {
@@ -231,21 +256,52 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         .returning();
       const row = inserted[0];
       if (row === undefined) return err({ kind: "not_found" });
-      return ok(rowToAppSummary(row));
+      return ok(rowToAppSummary(row, []));
     },
 
     async getApp(appId) {
       const row = await appById(appId);
-      return row === undefined ? err({ kind: "not_found" }) : ok(rowToAppSummary(row));
+      return row === undefined
+        ? err({ kind: "not_found" })
+        : ok(rowToAppSummary(row, await allowedEmailsFor(appId)));
     },
 
     async updateApp(appId, patch) {
+      const current = await appById(appId);
+      if (current === undefined) return err({ kind: "not_found" });
+      const effectiveMode = patch.shareMode ?? current.shareMode;
+      if (
+        patch.allowedEmails !== undefined &&
+        patch.allowedEmails.length > 0 &&
+        effectiveMode !== "google"
+      ) {
+        return err({
+          kind: "invalid_input",
+          message: "An email allowlist applies only to google-mode apps.",
+        });
+      }
       const set: { name?: string; shareMode?: string; updatedAt: Date } = { updatedAt: new Date() };
       if (patch.name !== undefined) set.name = patch.name;
       if (patch.shareMode !== undefined) set.shareMode = patch.shareMode;
       const updated = await db.update(apps).set(set).where(eq(apps.id, appId)).returning();
       const row = updated[0];
-      return row === undefined ? err({ kind: "not_found" }) : ok(rowToAppSummary(row));
+      if (row === undefined) return err({ kind: "not_found" });
+      if (patch.allowedEmails !== undefined) {
+        const emails = [...new Set(patch.allowedEmails.map(normalizeEmail))];
+        const now = new Date();
+        // Atomic replace: if the insert fails after the delete, a non-transactional
+        // version would leave the allowlist empty — which reads as "any signed-in
+        // Google account may view" (fail-open). bun:sqlite transactions are sync.
+        db.transaction((tx) => {
+          tx.delete(appAllowedEmails).where(eq(appAllowedEmails.appId, appId)).run();
+          if (emails.length > 0) {
+            tx.insert(appAllowedEmails)
+              .values(emails.map((email) => ({ id: ulid(), appId, email, createdAt: now })))
+              .run();
+          }
+        });
+      }
+      return ok(rowToAppSummary(row, await allowedEmailsFor(appId)));
     },
 
     async deleteApp(appId) {
