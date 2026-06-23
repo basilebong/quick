@@ -11,7 +11,7 @@ export const DashboardMobileHeader = (): React.ReactElement => {
   return (
     <header className="sticky top-0 z-40 border-border border-b bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
       <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <Link to="/" className="flex items-center outline-none">
+        <Link to="/" className="flex min-h-11 items-center outline-none">
           <Wordmark size="sm" />
         </Link>
 
