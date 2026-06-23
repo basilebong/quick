@@ -1,4 +1,4 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowSquareOutIcon, LightningIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
@@ -30,7 +30,7 @@ export const AppDetailScreen = ({ appId }: { appId: string }): React.ReactElemen
 
   if (app.isPending) {
     return (
-      <div className="flex flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
         <div className="h-8 w-40 animate-pulse rounded-md bg-muted" />
         <div className="h-10 w-full animate-pulse rounded-lg bg-muted" />
         <div className="h-40 w-full animate-pulse rounded-xl bg-muted" />
@@ -40,7 +40,7 @@ export const AppDetailScreen = ({ appId }: { appId: string }): React.ReactElemen
 
   if (app.isError || app.data === undefined) {
     return (
-      <div className="flex flex-col items-center gap-4 py-12 text-center">
+      <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-muted-foreground text-sm">This app could not be found.</p>
         <Button asChild variant="outline">
           <Link to="/">Back to apps</Link>
@@ -51,41 +51,48 @@ export const AppDetailScreen = ({ appId }: { appId: string }): React.ReactElemen
 
   const current = app.data;
   const baseUrl = appBaseUrl(current.slug);
+  const host = baseUrl.replace(/^https?:\/\//, "");
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit text-muted-foreground">
           <Link to="/">
             <ArrowLeftIcon size={16} />
             Apps
           </Link>
         </Button>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate font-semibold text-2xl text-foreground tracking-tight">
-                {current.name}
-              </h1>
-              <ShareModeBadge mode={current.shareMode} />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-secondary text-secondary-foreground ring-1 ring-border ring-inset">
+              <LightningIcon size={22} weight="fill" />
+            </span>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate font-semibold text-2xl text-foreground tracking-tight">
+                  {current.name}
+                </h1>
+                <ShareModeBadge mode={current.shareMode} />
+              </div>
+              <a
+                href={baseUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-fit items-center gap-1.5 font-mono text-muted-foreground text-sm transition-colors hover:text-foreground"
+              >
+                {host}
+                <ArrowSquareOutIcon size={14} />
+              </a>
             </div>
-            <a
-              href={baseUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="truncate text-muted-foreground text-sm hover:text-foreground"
-            >
-              {baseUrl}
-            </a>
           </div>
           <CopyButton value={baseUrl} label="Copy URL" size="sm" variant="outline" />
         </div>
       </div>
 
       <Tabs defaultValue="deployments">
-        <TabsList>
+        <TabsList className="sm:w-fit">
           {TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
+            <TabsTrigger key={tab.value} value={tab.value} className="sm:flex-none sm:px-4">
               {tab.label}
             </TabsTrigger>
           ))}

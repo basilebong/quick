@@ -79,7 +79,7 @@ export const TokensScreen = (): React.ReactElement => {
   const active = tokens.data?.filter((token) => token.revokedAt === null) ?? [];
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <div className="flex flex-col gap-3">
         <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit text-muted-foreground">
           <Link to="/">

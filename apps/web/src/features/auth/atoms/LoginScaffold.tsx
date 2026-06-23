@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Wordmark } from "./Wordmark";
+import { Wordmark } from "@/components/Wordmark";
 
 type LoginScaffoldProps = {
   children: ReactNode;

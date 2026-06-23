@@ -6,7 +6,7 @@ import {
   TimerIcon,
 } from "@phosphor-icons/react";
 
-import { Wordmark } from "./Wordmark";
+import { Wordmark } from "@/components/Wordmark";
 
 const features = [
   { Icon: LockKeyIcon, label: "Google-gated access" },

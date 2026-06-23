@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import * as v from "valibot";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -64,80 +65,87 @@ export const CreateAppScreen = (): React.ReactElement => {
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost" size="icon-sm" className="size-9">
           <Link to="/" aria-label="Back to apps">
             <ArrowLeftIcon size={18} />
           </Link>
         </Button>
-        <h1 className="font-semibold text-2xl text-foreground tracking-tight">New app</h1>
+        <div className="flex flex-col">
+          <h1 className="font-semibold text-2xl text-foreground tracking-tight">New app</h1>
+          <p className="text-muted-foreground text-sm">Reserve a slug and pick how it's shared.</p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="slug">Slug</Label>
-          <Input
-            id="slug"
-            value={slug}
-            onChange={(event) => setSlug(event.target.value.toLowerCase())}
-            placeholder="my-app"
-            autoCapitalize="none"
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            inputMode="url"
-            aria-invalid={touched && slugError !== null}
-          />
-          <p className="text-muted-foreground text-xs">
-            Becomes the subdomain: <code className="rounded bg-muted px-1">{slug || "my-app"}</code>
-            .yourdomain
-          </p>
-          {touched && slugError !== null ? (
-            <p className="text-destructive text-xs">{slugError}</p>
-          ) : null}
-        </div>
+      <Card>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="slug">Slug</Label>
+              <Input
+                id="slug"
+                value={slug}
+                onChange={(event) => setSlug(event.target.value.toLowerCase())}
+                placeholder="my-app"
+                autoCapitalize="none"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                inputMode="url"
+                aria-invalid={touched && slugError !== null}
+              />
+              <p className="text-muted-foreground text-xs">
+                Becomes the subdomain:{" "}
+                <code className="rounded bg-muted px-1">{slug || "my-app"}</code>.yourdomain
+              </p>
+              {touched && slugError !== null ? (
+                <p className="text-destructive text-xs">{slugError}</p>
+              ) : null}
+            </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="My App"
-            autoComplete="off"
-            aria-invalid={touched && nameError !== null}
-          />
-          {touched && nameError !== null ? (
-            <p className="text-destructive text-xs">{nameError}</p>
-          ) : null}
-        </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="My App"
+                autoComplete="off"
+                aria-invalid={touched && nameError !== null}
+              />
+              {touched && nameError !== null ? (
+                <p className="text-destructive text-xs">{nameError}</p>
+              ) : null}
+            </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="share-mode">Sharing</Label>
-          <Select
-            value={shareMode}
-            onValueChange={(value) => setShareMode(value === "link" ? "link" : "google")}
-          >
-            <SelectTrigger id="share-mode">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="google">Google sign-in</SelectItem>
-              <SelectItem value="link">Secret link</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-muted-foreground text-xs">
-            {shareMode === "google"
-              ? "Viewers sign in with Google. Restrict to specific emails from the app's Sharing tab."
-              : "Anyone with an active secret link can open the app."}
-          </p>
-        </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="share-mode">Sharing</Label>
+              <Select
+                value={shareMode}
+                onValueChange={(value) => setShareMode(value === "link" ? "link" : "google")}
+              >
+                <SelectTrigger id="share-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="google">Google sign-in</SelectItem>
+                  <SelectItem value="link">Secret link</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                {shareMode === "google"
+                  ? "Viewers sign in with Google. Restrict to specific emails from the app's Sharing tab."
+                  : "Anyone with an active secret link can open the app."}
+              </p>
+            </div>
 
-        <Button type="submit" size="lg" disabled={mutation.isPending}>
-          {mutation.isPending ? "Creating…" : "Create app"}
-        </Button>
-      </form>
+            <Button type="submit" size="lg" disabled={mutation.isPending}>
+              {mutation.isPending ? "Creating…" : "Create app"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };
