@@ -23,7 +23,9 @@ in a separate PR with a written justification — global, not per-line.
 ## What runs
 
 `pnpm check` (Biome) and `pnpm check:source` (TypeScript AST) both gate CI
-and the `pre-commit` hook. `tsc -b` also runs at pre-commit.
+and the `pre-commit` hook. `tsc -b` also runs at pre-commit. The `commit-msg`
+hook runs `commitlint` against the commit message — see
+[Commit messages](#commit-messages-commit-msg-hook).
 
 ## Biome
 
@@ -81,6 +83,49 @@ export { a, m, z };
 
 This applies only to re-export statements — `export const`, `export function`,
 etc. are not sorted (they're declarations, ordered for readability).
+
+## Commit messages (`commit-msg` hook)
+
+Commit messages MUST follow [Conventional Commits](https://www.conventionalcommits.org).
+Enforced by `commitlint` (config `@commitlint/config-conventional`), wired as
+the `commit-msg` lefthook job: `pnpm exec commitlint --edit {1}`.
+
+Format:
+
+```
+<type>(<optional scope>)<optional !>: <subject>
+
+<optional body, after one blank line>
+
+<optional footer(s)>
+```
+
+Rules (config-conventional defaults; errors block the commit):
+
+- `type` is required, lowercase, one of: `build`, `chore`, `ci`, `docs`,
+  `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`.
+- `subject` is required and must NOT end with a period.
+- Header (first line) ≤ 100 chars.
+- A blank line must separate body from header (warning level).
+- Breaking change: `!` after type/scope (`feat!:`) or a `BREAKING CHANGE:`
+  footer.
+
+Right:
+```
+feat(web): add responsive desktop dashboard shell
+fix(deploy): reject path traversal in static serving
+chore: bump biome to 1.9.4
+```
+
+Wrong:
+```
+Add dashboard          # no type
+Feat: Add dashboard.   # capitalized type, trailing period
+```
+
+This is the recognised standard — deliberately NOT reverse-engineered from
+this repo's history. Some commits predate it and would not pass; that is
+expected.
 
 ## Setup
 
