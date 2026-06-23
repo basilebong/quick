@@ -140,7 +140,7 @@ describe("quick__deploy_html", () => {
 
       const set = await h.client.callTool({
         name: "quick__set_allowed_emails",
-        arguments: { slug: "client-app", emails: ["Client@Example.com", "client@example.com"] },
+        arguments: { slug: "client-app", emails: ["  Client@Example.com  ", "client@example.com"] },
       });
       expect(set.isError ?? false).toBe(false);
       expect(set.structuredContent).toMatchObject({ allowedEmails: ["client@example.com"] });
@@ -152,6 +152,24 @@ describe("quick__deploy_html", () => {
         arguments: { slug: "client-app", emails: [] },
       });
       expect(cleared.isError ?? false).toBe(false);
+      expect(await h.service.isEmailAllowedForApp(app.id, "stranger@example.com")).toBe(true);
+    });
+  });
+
+  test("quick__set_allowed_emails refuses a non-google app", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.client.callTool({
+        name: "quick__deploy_html",
+        arguments: { slug: "secret-app", html: "<!doctype html>x", shareMode: "link" },
+      });
+      const res = await h.client.callTool({
+        name: "quick__set_allowed_emails",
+        arguments: { slug: "secret-app", emails: ["a@b.com"] },
+      });
+      expect(res.isError ?? false).toBe(true);
+      const app = await h.service.findBySlug("secret-app");
+      if (app === null) throw new Error("app not created");
       expect(await h.service.isEmailAllowedForApp(app.id, "stranger@example.com")).toBe(true);
     });
   });

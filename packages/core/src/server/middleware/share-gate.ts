@@ -60,17 +60,16 @@ export const createShareGate = (deps: ShareGateDeps) =>
           name: session.name,
         };
         if (!(await deps.resolver.isEmailAllowedForApp(app.id, session.email))) {
-          if (isNavigation) {
-            await deps.resolver.recordAccess({
-              appId: app.id,
-              mode: "google",
-              viewer,
-              event: "denied",
-              path: c.req.path,
-              ip,
-              userAgent,
-            });
-          }
+          if (!isNavigation) return c.json({ error: "forbidden" }, 403);
+          await deps.resolver.recordAccess({
+            appId: app.id,
+            mode: "google",
+            viewer,
+            event: "denied",
+            path: c.req.path,
+            ip,
+            userAgent,
+          });
           return c.html(googleAccessDeniedPage(session.email), 403);
         }
         c.set("viewer", viewer);

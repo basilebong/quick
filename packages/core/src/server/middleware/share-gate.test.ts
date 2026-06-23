@@ -96,6 +96,25 @@ describe("share gate", () => {
     expect(recordedEvent).toBe("denied");
   });
 
+  test("google mode, valid session but disallowed email, a non-navigation request gets 403 JSON (not an HTML page) and is not logged", async () => {
+    let recorded = 0;
+    const r = resolver({
+      validateAppSession: async () => ({ userId: "u1", email: "stranger@b.co", name: "S" }),
+      isEmailAllowedForApp: async () => false,
+      recordAccess: async () => {
+        recorded++;
+      },
+    });
+    const res = await build({ kind: "app", app: appCtx("google") }, r).request(
+      "https://acme.quick.example.com/data.json",
+      { headers: { cookie: `${APP_SESSION_COOKIE}=tok`, "sec-fetch-dest": "empty" } },
+    );
+    expect(res.status).toBe(403);
+    expect(res.headers.get("content-type") ?? "").toContain("application/json");
+    expect(await res.json()).toEqual({ error: "forbidden" });
+    expect(recorded).toBe(0);
+  });
+
   test("google mode with a valid session whose email is on the per-app allowlist admits", async () => {
     let checkedEmail = "";
     const r = resolver({

@@ -80,6 +80,8 @@ const RenameAppCard = ({ app }: { app: AppSummary }): React.ReactElement => {
               onChange={(event) => setName(event.target.value)}
               placeholder="My App"
               autoComplete="off"
+              autoCapitalize="words"
+              inputMode="text"
               aria-invalid={name.length > 0 && !valid}
               className="text-base"
             />

@@ -267,6 +267,19 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
     },
 
     async updateApp(appId, patch) {
+      const current = await appById(appId);
+      if (current === undefined) return err({ kind: "not_found" });
+      const effectiveMode = patch.shareMode ?? current.shareMode;
+      if (
+        patch.allowedEmails !== undefined &&
+        patch.allowedEmails.length > 0 &&
+        effectiveMode !== "google"
+      ) {
+        return err({
+          kind: "invalid_input",
+          message: "An email allowlist applies only to google-mode apps.",
+        });
+      }
       const set: { name?: string; shareMode?: string; updatedAt: Date } = { updatedAt: new Date() };
       if (patch.name !== undefined) set.name = patch.name;
       if (patch.shareMode !== undefined) set.shareMode = patch.shareMode;
@@ -275,13 +288,18 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
       if (row === undefined) return err({ kind: "not_found" });
       if (patch.allowedEmails !== undefined) {
         const emails = [...new Set(patch.allowedEmails.map(normalizeEmail))];
-        await db.delete(appAllowedEmails).where(eq(appAllowedEmails.appId, appId));
-        if (emails.length > 0) {
-          const now = new Date();
-          await db
-            .insert(appAllowedEmails)
-            .values(emails.map((email) => ({ id: ulid(), appId, email, createdAt: now })));
-        }
+        const now = new Date();
+        // Atomic replace: if the insert fails after the delete, a non-transactional
+        // version would leave the allowlist empty — which reads as "any signed-in
+        // Google account may view" (fail-open). bun:sqlite transactions are sync.
+        db.transaction((tx) => {
+          tx.delete(appAllowedEmails).where(eq(appAllowedEmails.appId, appId)).run();
+          if (emails.length > 0) {
+            tx.insert(appAllowedEmails)
+              .values(emails.map((email) => ({ id: ulid(), appId, email, createdAt: now })))
+              .run();
+          }
+        });
       }
       return ok(rowToAppSummary(row, await allowedEmailsFor(appId)));
     },

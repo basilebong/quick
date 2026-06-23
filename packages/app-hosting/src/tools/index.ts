@@ -165,7 +165,7 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
         "Set the viewer email allowlist for a google-mode app (replaces the current list). Only these Google accounts may view it. Pass an empty list to allow any signed-in Google account.",
       inputSchema: {
         slug: z.string().min(1),
-        emails: z.array(z.string().email()).max(MAX_ALLOWED_EMAILS),
+        emails: z.array(z.string().trim().email().max(254)).max(MAX_ALLOWED_EMAILS),
       },
     },
     async ({ slug, emails }) => {

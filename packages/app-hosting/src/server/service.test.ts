@@ -170,6 +170,25 @@ describe("hosting service", () => {
     expect(await service.isEmailAllowedForApp(parseAppId(a.id), "only-b@example.com")).toBe(false);
   });
 
+  test("rejects a non-empty allowlist on a non-google app; allows clearing and a combined switch to google", async () => {
+    const app = await newApp("linkful", "link");
+    const appId = parseAppId(app.id);
+
+    const rejected = await service.updateApp(appId, { allowedEmails: ["x@example.com"] });
+    expect(rejected.kind === "err" && rejected.error.kind).toBe("invalid_input");
+    expect(await service.isEmailAllowedForApp(appId, "anyone@example.com")).toBe(true);
+
+    const clearOk = await service.updateApp(appId, { allowedEmails: [] });
+    expect(clearOk.kind).toBe("ok");
+
+    const switched = await service.updateApp(appId, {
+      shareMode: "google",
+      allowedEmails: ["x@example.com"],
+    });
+    expect(switched.kind === "ok" && switched.value.allowedEmails).toEqual(["x@example.com"]);
+    expect(await service.isEmailAllowedForApp(appId, "stranger@example.com")).toBe(false);
+  });
+
   test("deleting an app removes its on-disk bundles", async () => {
     const app = await newApp("gone");
     const appId = parseAppId(app.id);

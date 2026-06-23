@@ -139,6 +139,26 @@ describe("sso handoff", () => {
     });
   });
 
+  test("a denied viewer at the grant is recorded in the access log", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const set = await h.service.updateApp(h.appCtx.id, {
+        allowedEmails: ["someone-else@example.com"],
+      });
+      if (set.kind !== "ok") throw new Error("set allowlist failed");
+      const res = await h.apex.request(`/sso/grant?app=${APP_HOST}&next=%2Fdash`, {
+        headers: { cookie: h.cookie },
+      });
+      expect(res.status).toBe(403);
+
+      const log = await h.service.listAccessLog(h.appCtx.id, 10);
+      const denied = log.find((e) => e.event === "denied");
+      expect(denied?.mode).toBe("google");
+      expect(denied?.userId).toBe(h.userId);
+      expect(denied?.path).toBe("/dash");
+    });
+  });
+
   test("a signed-in viewer on the app's email allowlist is still granted a code", async () => {
     await withTestAuth({}, async (ctx) => {
       const h = await setup(ctx);

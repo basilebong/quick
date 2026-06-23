@@ -29,7 +29,10 @@ const safePath = (raw: string | undefined): string => {
 
 export type SsoGrantDeps = {
   session: SessionReader;
-  service: Pick<HostingService, "findBySlug" | "createSsoCode" | "isEmailAllowedForApp">;
+  service: Pick<
+    HostingService,
+    "findBySlug" | "createSsoCode" | "isEmailAllowedForApp" | "recordAccess"
+  >;
   rootDomain: string;
   apexBaseUrl: string;
   signInPath: string;
@@ -69,6 +72,20 @@ export const createSsoGrant = (deps: SsoGrantDeps) =>
       );
     }
     if (!(await deps.service.isEmailAllowedForApp(app.id, session.user.email))) {
+      await deps.service.recordAccess({
+        appId: app.id,
+        mode: "google",
+        viewer: {
+          kind: "user",
+          userId: parseUserId(session.user.id),
+          email: session.user.email,
+          name: session.user.name,
+        },
+        event: "denied",
+        path: next,
+        ip: (c.req.header("x-forwarded-for")?.split(",")[0] ?? "").trim() || null,
+        userAgent: c.req.header("user-agent") ?? null,
+      });
       return c.html(googleAccessDeniedPage(session.user.email), 403);
     }
     const code = await deps.service.createSsoCode(app.id, parseUserId(session.user.id));
