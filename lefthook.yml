@@ -13,3 +13,8 @@ pre-commit:
     - name: typecheck (whole project — types are cross-file)
       glob: "*.{ts,tsx}"
       run: pnpm exec tsc -b --noEmit
+
+commit-msg:
+  jobs:
+    - name: commitlint (conventional commits)
+      run: pnpm exec commitlint --edit {1}

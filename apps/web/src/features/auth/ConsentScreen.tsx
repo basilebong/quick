@@ -1,12 +1,11 @@
 import { PlugsConnectedIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
+import { Wordmark } from "@/components/Wordmark";
 import { Button } from "@/components/ui/button";
 import { submitOAuthConsent } from "@/lib/auth-client";
 import { cn } from "@/lib/cn";
 import { consentRoute } from "@/router";
-
-import { Wordmark } from "./atoms/Wordmark";
 
 type Status =
   | { kind: "idle" }
