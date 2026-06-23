@@ -51,7 +51,10 @@ jobs:
           #   pulled transitively by vite-plugin-pwa → workbox-build at BUILD time (SW generation). Blue Oak Model
           #   License 1.0.0 is OSI-approved and permissive — no copyleft, more permissive than MIT. Not in the
           #   production bundle.
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, CC0-1.0, Unlicense, MPL-2.0, CC-BY-4.0, BlueOak-1.0.0
+          # Python-2.0: argparse (pulled by js-yaml → cosmiconfig, commitlint's config loader) at BUILD/dev time
+          #   only. The Python Software Foundation License 2.0 is OSI-approved and permissive (no copyleft,
+          #   GPL-compatible); commitlint is a devDependency and never ships in the production bundle.
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, CC0-1.0, Unlicense, MPL-2.0, CC-BY-4.0, BlueOak-1.0.0, Python-2.0
           # rou3 (Hono router): package.json declares "license": "MIT" and ships an MIT LICENSE file;
           #   GitHub's scanner spuriously reports "MIT AND MS-PL" — verified false-positive against upstream source.
           # @better-fetch/fetch (better-auth HTTP client): package.json missing license field, but the published
