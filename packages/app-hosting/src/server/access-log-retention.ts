@@ -18,18 +18,23 @@ export type AccessLogRetention = {
 export const createAccessLogRetention = (opts: AccessLogRetentionOptions): AccessLogRetention => {
   const intervalMs = opts.intervalMs ?? DEFAULT_INTERVAL_MS;
   let timer: ReturnType<typeof setInterval> | null = null;
-  let running = false;
+  let inFlight: Promise<void> | null = null;
 
-  const sweep = async (): Promise<void> => {
-    if (running) return;
-    running = true;
+  const purge = async (): Promise<void> => {
     try {
       await opts.service.purgeAccessLogOlderThan(new Date(Date.now() - opts.ttlMs));
     } catch (error) {
       console.error("access-log retention sweep failed", error);
-    } finally {
-      running = false;
     }
+  };
+
+  const sweep = (): Promise<void> => {
+    if (inFlight !== null) return inFlight;
+    const run = purge().finally(() => {
+      inFlight = null;
+    });
+    inFlight = run;
+    return run;
   };
 
   return {
@@ -45,7 +50,7 @@ export const createAccessLogRetention = (opts: AccessLogRetentionOptions): Acces
         clearInterval(timer);
         timer = null;
       }
-      return Promise.resolve();
+      return inFlight ?? Promise.resolve();
     },
   };
 };
