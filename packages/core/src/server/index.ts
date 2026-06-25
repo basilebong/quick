@@ -40,7 +40,6 @@ export {
   type ShareGateDeps,
 } from "./middleware/share-gate.ts";
 export { createTlsCheck } from "./middleware/tls-check.ts";
-export { clientIpFromXff } from "./net.ts";
 export type {
   AccessEntry,
   AccessEvent,

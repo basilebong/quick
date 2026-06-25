@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { parseAppId, parseAppSlug, parseShareLinkId } from "../../shared/index.ts";
 import type {
+  AccessEntry,
   AppContext,
   ShareResolver,
   Tenant,
@@ -210,17 +211,32 @@ describe("share gate", () => {
     expect(res.status).toBe(403);
   });
 
-  test("the logged IP is the proxy-appended last X-Forwarded-For entry, not the spoofable first", async () => {
-    let loggedIp: string | null = "unset";
+  test("never records a viewer IP or user-agent, even when those headers are present", async () => {
+    const recorded: AccessEntry[] = [];
     const r = resolver({
+      validateLinkToken: async () => ({
+        kind: "valid",
+        linkId: parseShareLinkId("lnk_1"),
+        expiresAt: Date.now() + 3_600_000,
+      }),
       recordAccess: async (entry) => {
-        loggedIp = entry.ip;
+        recorded.push(entry);
       },
     });
     await build({ kind: "app", app: appCtx("link") }, r).request(
-      "https://acme.quick.example.com/",
-      { headers: { "sec-fetch-dest": "document", "x-forwarded-for": "1.1.1.1, 2.2.2.2, 3.3.3.3" } },
+      "https://acme.quick.example.com/page?t=secret",
+      {
+        headers: {
+          "x-forwarded-for": "203.0.113.7, 70.41.3.18",
+          "user-agent": "Mozilla/5.0 (probe)",
+          "sec-fetch-dest": "document",
+        },
+      },
     );
-    expect(loggedIp).toBe("3.3.3.3");
+    expect(recorded.length).toBeGreaterThan(0);
+    for (const entry of recorded) {
+      expect("ip" in entry).toBe(false);
+      expect("userAgent" in entry).toBe(false);
+    }
   });
 });
