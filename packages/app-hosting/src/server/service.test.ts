@@ -12,6 +12,7 @@ import {
   parseShareLinkId,
   parseUserId,
 } from "@quick/core/shared";
+import { accessLog } from "./schema.ts";
 import { type HostingService, createHostingService } from "./service.ts";
 
 let db: Db;
@@ -199,5 +200,35 @@ describe("hosting service", () => {
     expect(del.kind).toBe("ok");
     expect(existsSync(join(appsDir, "gone"))).toBe(false);
     expect((await service.getApp(appId)).kind).toBe("err");
+  });
+
+  test("purgeAccessLogOlderThan removes rows older than the cutoff and keeps newer ones", async () => {
+    const app = await newApp("acme");
+    const appId = parseAppId(app.id);
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+
+    const insertAt = (id: string, ageDays: number) =>
+      db.insert(accessLog).values({
+        id,
+        appId,
+        mode: "link",
+        viewerKind: null,
+        userId: null,
+        linkId: null,
+        event: "view",
+        path: "/",
+        createdAt: new Date(now - ageDays * day),
+      });
+
+    await insertAt("old_40d", 40);
+    await insertAt("old_31d", 31);
+    await insertAt("fresh_5d", 5);
+
+    const deleted = await service.purgeAccessLogOlderThan(new Date(now - 30 * day));
+    expect(deleted).toBe(2);
+
+    const remaining = await db.select({ id: accessLog.id }).from(accessLog);
+    expect(remaining.map((r) => r.id)).toEqual(["fresh_5d"]);
   });
 });

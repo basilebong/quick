@@ -1,3 +1,8 @@
+export {
+  type AccessLogRetention,
+  type AccessLogRetentionOptions,
+  createAccessLogRetention,
+} from "./access-log-retention.ts";
 export { type DeployFile, isSafeDeployPath } from "./deploy.ts";
 export { createOwnerAuth, type OwnerUser, type OwnerVariables } from "./owner-auth.ts";
 export {
