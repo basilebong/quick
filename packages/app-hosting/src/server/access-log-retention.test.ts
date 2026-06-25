@@ -47,4 +47,33 @@ describe("access log retention", () => {
 
     expect(calls).toBe(1);
   });
+
+  test("close waits for an in-flight sweep before resolving", async () => {
+    let resolvePurge: (() => void) | undefined;
+    const retention = createAccessLogRetention({
+      service: {
+        purgeAccessLogOlderThan: () =>
+          new Promise<number>((resolve) => {
+            resolvePurge = () => resolve(0);
+          }),
+      },
+      ttlMs: 1000,
+      intervalMs: 60_000,
+    });
+
+    retention.start();
+    if (resolvePurge === undefined) throw new Error("expected a sweep to be in flight");
+
+    let closed = false;
+    const closing = retention.close().then(() => {
+      closed = true;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(closed).toBe(false);
+
+    resolvePurge();
+    await closing;
+    expect(closed).toBe(true);
+  });
 });
