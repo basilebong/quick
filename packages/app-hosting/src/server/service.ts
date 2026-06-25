@@ -205,8 +205,6 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         linkId: viewer !== null && viewer.kind === "link" ? viewer.linkId : null,
         event: entry.event,
         path: entry.path,
-        ip: entry.ip,
-        userAgent: entry.userAgent,
         createdAt: new Date(),
       });
     },

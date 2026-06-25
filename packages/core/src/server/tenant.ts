@@ -35,8 +35,6 @@ export type AccessEntry = {
   viewer: Viewer | null;
   event: AccessEvent;
   path: string;
-  ip: string | null;
-  userAgent: string | null;
 };
 
 export type LinkValidation =

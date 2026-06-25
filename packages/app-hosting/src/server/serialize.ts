@@ -70,7 +70,6 @@ export const rowToAccessLogEntry = (row: AccessLogRow): AccessLogEntry => ({
   linkId: row.linkId,
   event: row.event,
   path: row.path,
-  ip: row.ip,
   createdAt: row.createdAt.getTime(),
 });
 
