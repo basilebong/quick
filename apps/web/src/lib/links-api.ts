@@ -23,7 +23,6 @@ const AccessLogEntrySchema = v.object({
   linkId: v.nullable(v.string()),
   event: v.string(),
   path: v.string(),
-  ip: v.nullable(v.string()),
   createdAt: v.number(),
 });
 
