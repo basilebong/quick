@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { AccessEntry, AppContext, Db, LinkValidation } from "@quick/core/server";
-import { and, desc, eq, isNull } from "@quick/core/server/drizzle";
+import { and, desc, eq, isNull, lt } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
 import {
   type AppId,
@@ -97,6 +97,7 @@ export type HostingService = {
   revokeLink(appId: AppId, linkId: ShareLinkId): Promise<Result<{ id: string }, HostingError>>;
   // access log
   listAccessLog(appId: AppId, limit: number): Promise<AccessLogEntry[]>;
+  purgeAccessLogOlderThan(cutoff: Date): Promise<number>;
   // per-app sessions (google mode) + the apex→tenant one-time-code handoff
   createSsoCode(appId: AppId, userId: UserId): Promise<string>;
   redeemSsoCode(rawCode: string, appId: AppId): Promise<{ userId: UserId } | null>;
@@ -454,6 +455,14 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         .orderBy(desc(accessLog.createdAt))
         .limit(limit);
       return rows.map(rowToAccessLogEntry);
+    },
+
+    async purgeAccessLogOlderThan(cutoff) {
+      const deleted = await db
+        .delete(accessLog)
+        .where(lt(accessLog.createdAt, cutoff))
+        .returning({ id: accessLog.id });
+      return deleted.length;
     },
 
     async createSsoCode(appId, userId) {
