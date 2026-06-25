@@ -17,6 +17,7 @@ const flagSchema = v.pipe(
 const urlSchema = v.pipe(v.string(), v.url());
 const nonEmptySchema = v.pipe(v.string(), v.minLength(1));
 const secretSchema = v.pipe(v.string(), v.minLength(32));
+const daysSchema = v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1));
 
 const envSchema = v.object({
   PORT: v.optional(portSchema, "3000"),
@@ -29,6 +30,7 @@ const envSchema = v.object({
   MCP_HOST: v.optional(nonEmptySchema),
   DATABASE_PATH: v.optional(nonEmptySchema),
   QUICK_ALLOWED_EMAILS: v.optional(nonEmptySchema),
+  QUICK_ACCESS_LOG_RETENTION_DAYS: v.optional(daysSchema, "30"),
   APPS_DIR: v.optional(nonEmptySchema),
 });
 
@@ -45,6 +47,7 @@ const runtimeEnvSchema = v.object({
   GOOGLE_SECRET: nonEmptySchema,
   DATABASE_PATH: nonEmptySchema,
   QUICK_ALLOWED_EMAILS: nonEmptySchema,
+  QUICK_ACCESS_LOG_RETENTION_DAYS: v.optional(daysSchema, "30"),
   MCP_HOST: v.optional(nonEmptySchema),
   APPS_DIR: v.optional(nonEmptySchema),
 });
