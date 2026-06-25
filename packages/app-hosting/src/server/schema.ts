@@ -101,8 +101,6 @@ export const accessLog = sqliteTable(
     linkId: text("link_id"),
     event: text("event").notNull(),
     path: text("path").notNull(),
-    ip: text("ip"),
-    userAgent: text("user_agent"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
   (t) => [index("hosting_access_log_app_idx").on(t.appId, t.createdAt)],

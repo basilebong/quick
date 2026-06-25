@@ -83,8 +83,6 @@ export const createSsoGrant = (deps: SsoGrantDeps) =>
         },
         event: "denied",
         path: next,
-        ip: (c.req.header("x-forwarded-for")?.split(",")[0] ?? "").trim() || null,
-        userAgent: c.req.header("user-agent") ?? null,
       });
       return c.html(googleAccessDeniedPage(session.user.email), 403);
     }

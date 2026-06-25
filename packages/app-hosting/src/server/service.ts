@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { AccessEntry, AppContext, Db, LinkValidation } from "@quick/core/server";
-import { and, desc, eq } from "@quick/core/server/drizzle";
+import { and, desc, eq, lt } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
 import {
   type AccessTokenId,
@@ -98,6 +98,7 @@ export type HostingService = {
   revokeLink(appId: AppId, linkId: ShareLinkId): Promise<Result<{ id: string }, HostingError>>;
   // access log
   listAccessLog(appId: AppId, limit: number): Promise<AccessLogEntry[]>;
+  purgeAccessLogOlderThan(cutoff: Date): Promise<number>;
   // personal access tokens (CLI)
   listTokens(ownerId: UserId): Promise<AccessTokenView[]>;
   createToken(
@@ -205,8 +206,6 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         linkId: viewer !== null && viewer.kind === "link" ? viewer.linkId : null,
         event: entry.event,
         path: entry.path,
-        ip: entry.ip,
-        userAgent: entry.userAgent,
         createdAt: new Date(),
       });
     },
@@ -430,6 +429,14 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         .orderBy(desc(accessLog.createdAt))
         .limit(limit);
       return rows.map(rowToAccessLogEntry);
+    },
+
+    async purgeAccessLogOlderThan(cutoff) {
+      const deleted = await db
+        .delete(accessLog)
+        .where(lt(accessLog.createdAt, cutoff))
+        .returning({ id: accessLog.id });
+      return deleted.length;
     },
 
     async listTokens(ownerId) {

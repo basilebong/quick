@@ -39,7 +39,6 @@ export type AccessLogEntry = {
   linkId: string | null;
   event: string;
   path: string;
-  ip: string | null;
   createdAt: number;
 };
 

@@ -1,6 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { createFilesService } from "@quick/app-files/server";
-import { createHostingService } from "@quick/app-hosting/server";
+import { createAccessLogRetention, createHostingService } from "@quick/app-hosting/server";
 import { createStoreService } from "@quick/app-store/server";
 import {
   createAuditRecorder,
@@ -79,11 +79,18 @@ const app = createApp({
 
 const server = Bun.serve({ port: env.PORT, fetch: app.fetch });
 
+const accessLogRetention = createAccessLogRetention({
+  service: hosting,
+  ttlMs: env.QUICK_ACCESS_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+});
+accessLogRetention.start();
+
 let shuttingDown = false;
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
   console.info(`Quick server received ${signal}, shutting down`);
+  await accessLogRetention.close();
   await server.stop();
   process.exit(0);
 };

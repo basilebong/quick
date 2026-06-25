@@ -31,9 +31,6 @@ export type ShareGateDeps = {
   secureCookies: boolean;
 };
 
-const clientIp = (xff: string | undefined): string | null =>
-  (xff?.split(",")[0] ?? "").trim() || null;
-
 // Enforces a tenant app's share mode. A no-op on the apex (so the chain continues
 // to the dashboard/API). For an app it admits the request (setting `viewer`) or
 // redirects/blocks. Access is logged once per navigation, not per asset.
@@ -42,8 +39,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
     const tenant = c.var.tenant;
     if (tenant.kind !== "app") return next();
     const app = tenant.app;
-    const ip = clientIp(c.req.header("x-forwarded-for"));
-    const userAgent = c.req.header("user-agent") ?? null;
     const isNavigation = c.req.header("sec-fetch-dest") === "document";
 
     if (app.shareMode === "google") {
@@ -67,8 +62,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
             viewer,
             event: "denied",
             path: c.req.path,
-            ip,
-            userAgent,
           });
           return c.html(googleAccessDeniedPage(session.email), 403);
         }
@@ -80,8 +73,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
             viewer,
             event: "view",
             path: c.req.path,
-            ip,
-            userAgent,
           });
         }
         return next();
@@ -131,8 +122,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
           viewer,
           event: "view",
           path: c.req.path,
-          ip,
-          userAgent,
         });
         const u = new URL(c.req.url);
         u.searchParams.delete("t");
@@ -146,8 +135,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
           viewer,
           event: "view",
           path: c.req.path,
-          ip,
-          userAgent,
         });
       }
       return next();
@@ -160,8 +147,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
         viewer: null,
         event: "denied",
         path: c.req.path,
-        ip,
-        userAgent,
       });
     }
     return c.html(linkAccessPage(res.kind === "expired" ? "expired" : "missing"), 403);

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { parseAppId, parseAppSlug, parseShareLinkId } from "../../shared/index.ts";
 import type {
+  AccessEntry,
   AppContext,
   ShareResolver,
   Tenant,
@@ -207,5 +208,34 @@ describe("share gate", () => {
       "https://acme.quick.example.com/?t=x",
     );
     expect(res.status).toBe(403);
+  });
+
+  test("never records a viewer IP or user-agent, even when those headers are present", async () => {
+    const recorded: AccessEntry[] = [];
+    const r = resolver({
+      validateLinkToken: async () => ({
+        kind: "valid",
+        linkId: parseShareLinkId("lnk_1"),
+        expiresAt: Date.now() + 3_600_000,
+      }),
+      recordAccess: async (entry) => {
+        recorded.push(entry);
+      },
+    });
+    await build({ kind: "app", app: appCtx("link") }, r).request(
+      "https://acme.quick.example.com/page?t=secret",
+      {
+        headers: {
+          "x-forwarded-for": "203.0.113.7, 70.41.3.18",
+          "user-agent": "Mozilla/5.0 (probe)",
+          "sec-fetch-dest": "document",
+        },
+      },
+    );
+    expect(recorded.length).toBeGreaterThan(0);
+    for (const entry of recorded) {
+      expect("ip" in entry).toBe(false);
+      expect("userAgent" in entry).toBe(false);
+    }
   });
 });

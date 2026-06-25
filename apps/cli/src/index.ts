@@ -63,7 +63,6 @@ const AccessLogResponse = v.object({
       event: v.string(),
       mode: v.string(),
       path: v.string(),
-      ip: v.nullable(v.string()),
       userId: v.nullable(v.string()),
       linkId: v.nullable(v.string()),
       createdAt: v.number(),
