@@ -14,7 +14,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
 };
 
 const notDeployedPage = (slug: string): string =>
-  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not deployed</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:18vh auto;padding:0 1.25rem;color:#1a1a1a}h1{font-size:1.4rem}code{background:#f2f2f2;padding:.1rem .35rem;border-radius:.25rem}</style></head><body><h1>Nothing deployed yet</h1><p>Run <code>quick deploy</code> to publish <code>${escapeHtml(slug)}</code>.</p></body></html>`;
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not deployed</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:18vh auto;padding:0 1.25rem;color:#1a1a1a}h1{font-size:1.4rem}code{background:#f2f2f2;padding:.1rem .35rem;border-radius:.25rem}</style></head><body><h1>Nothing deployed yet</h1><p>The app <code>${escapeHtml(slug)}</code> has no deployment yet.</p></body></html>`;
 
 // Serves the current immutable deployment for the resolved tenant app. Runs after
 // the share gate, so the viewer is already authorized.

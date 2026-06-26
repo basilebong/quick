@@ -14,8 +14,8 @@ HARD rules for Quick, on top of the constitution.
   that `/_api/*` rejects a request not bearing this host-only cookie.
 
 ## Secrets at rest
-- Share-link tokens and personal access tokens are random ≥256-bit values; store
-  ONLY their SHA-256 hash. Show plaintext to the owner once; never persist or log it.
+- Share-link tokens are random ≥256-bit values; store ONLY their SHA-256 hash.
+  Show plaintext to the owner once; never persist or log it.
 - Never log a raw token or a `?t=` query value. The link redeem path strips `?t=`
   via a clean-URL redirect with `Referrer-Policy: no-referrer`.
 

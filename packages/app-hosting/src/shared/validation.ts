@@ -55,15 +55,3 @@ export const CreateLinkInputSchema = v.object({
   expiresAt: v.pipe(v.number(), v.integer(), v.minValue(1)),
 });
 export type CreateLinkInput = v.InferOutput<typeof CreateLinkInputSchema>;
-
-export const CreateTokenInputSchema = v.object({ label: LabelSchema });
-export type CreateTokenInput = v.InferOutput<typeof CreateTokenInputSchema>;
-
-// A deploy uploads each file as base64 (`content`) keyed by its relative path.
-// Simple, dependency-free, and there is no archive extraction to attack.
-export const DeployFileSchema = v.object({
-  path: v.pipe(v.string(), v.minLength(1)),
-  content: v.string(),
-});
-export const DeployInputSchema = v.object({ files: v.array(DeployFileSchema) });
-export type DeployInput = v.InferOutput<typeof DeployInputSchema>;

@@ -108,22 +108,6 @@ export const accessLog = sqliteTable(
   (t) => [index("hosting_access_log_app_idx").on(t.appId, t.createdAt)],
 );
 
-export const accessTokens = sqliteTable(
-  "access_tokens",
-  {
-    id: text("id").primaryKey(),
-    tokenHash: text("token_hash").notNull().unique(),
-    ownerUserId: text("owner_user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    label: text("label").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
-    revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
-  },
-  (t) => [index("access_tokens_owner_idx").on(t.ownerUserId)],
-);
-
 // A google-mode viewer's per-app credential. The `quick_app_sess` cookie holds an
 // opaque random token; only its SHA-256 hash is stored, re-validated every request
 // (so expiry takes effect immediately and there is nothing signed to forge). It is
@@ -174,6 +158,5 @@ export type AppAllowedEmailRow = typeof appAllowedEmails.$inferSelect;
 export type DeploymentRow = typeof deployments.$inferSelect;
 export type ShareLinkRow = typeof shareLinks.$inferSelect;
 export type AccessLogRow = typeof accessLog.$inferSelect;
-export type AccessTokenRow = typeof accessTokens.$inferSelect;
 export type AppSessionRow = typeof appSessions.$inferSelect;
 export type AppSessionCodeRow = typeof appSessionCodes.$inferSelect;

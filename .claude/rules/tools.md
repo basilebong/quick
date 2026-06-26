@@ -95,6 +95,25 @@ Always return both `content` (text, for the LLM to read) AND
 `structuredContent` (for clients that want JSON). The shape of
 `structuredContent` is part of the tool's public API.
 
+## Keep the build guide in sync
+
+`QUICK_BUILD_GUIDE` in `packages/app-hosting/src/tools/index.ts` is the single
+source of truth for how apps are built on Quick. It powers BOTH the
+`build_with_quick` MCP prompt AND the server `instructions`, and it documents the
+`/_api/db` and `/_api/files` building-block contracts the model writes app code
+against.
+
+In the SAME PR, update `QUICK_BUILD_GUIDE` whenever you:
+
+- add, rename, or remove an MCP tool or prompt an app author would use, or
+- change the `/_api/db` or `/_api/files` route surface (methods, paths, payloads).
+
+This is enforced where it can be: a test in `tools/index.test.ts` fails if a
+registered tool is neither named in the guide nor in its explicit management-only
+omit set — so a forgotten tool breaks CI. The `/_api/*` HTTP contracts can't be
+auto-diffed against prose; keep them honest by hand when you touch
+`app-store`/`app-files` routes.
+
 ## Testing
 
 Tool handlers are tested in `packages/app-*/src/tools/**.test.ts` by driving a

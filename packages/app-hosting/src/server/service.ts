@@ -4,7 +4,6 @@ import type { AccessEntry, AppContext, Db, LinkValidation } from "@quick/core/se
 import { and, desc, eq } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
 import {
-  type AccessTokenId,
   type AppId,
   type DeploymentId,
   type Result,
@@ -19,7 +18,6 @@ import {
 import { ulid } from "ulid";
 import type {
   AccessLogEntry,
-  AccessTokenView,
   AppSummary,
   CreateAppInput,
   CreateLinkInput,
@@ -30,16 +28,14 @@ import type {
 } from "../shared/index.ts";
 import { normalizeEmail } from "../shared/index.ts";
 import {
-  DEPLOY_MAX_FILES,
-  DEPLOY_MAX_TOTAL_BYTES,
   type DeployFile,
-  isSafeDeployPath,
+  readDeployment,
   removeAppDir,
+  validateDeploymentFiles,
   writeDeployment,
 } from "./deploy.ts";
 import {
   accessLog,
-  accessTokens,
   appAllowedEmails,
   appSessionCodes,
   appSessions,
@@ -53,13 +49,10 @@ import {
   rowToAppSummary,
   rowToDeployment,
   rowToShareLinkView,
-  rowToTokenView,
 } from "./serialize.ts";
 import {
-  PAT_PREFIX,
   generateAppSessionToken,
   generateLinkToken,
-  generatePat,
   generateSsoCode,
   hashToken,
 } from "./tokens.ts";
@@ -84,6 +77,7 @@ export type HostingService = {
     files: DeployFile[],
     by: UserId,
   ): Promise<Result<Deployment, HostingError>>;
+  readCurrentDeploymentFiles(appId: AppId): Promise<DeployFile[]>;
   activateDeployment(
     appId: AppId,
     deploymentId: DeploymentId,
@@ -98,19 +92,6 @@ export type HostingService = {
   revokeLink(appId: AppId, linkId: ShareLinkId): Promise<Result<{ id: string }, HostingError>>;
   // access log
   listAccessLog(appId: AppId, limit: number): Promise<AccessLogEntry[]>;
-  // personal access tokens (CLI)
-  listTokens(ownerId: UserId): Promise<AccessTokenView[]>;
-  createToken(
-    ownerId: UserId,
-    label: string,
-  ): Promise<Result<{ token: string; view: AccessTokenView }, HostingError>>;
-  revokeToken(
-    ownerId: UserId,
-    tokenId: AccessTokenId,
-  ): Promise<Result<{ id: string }, HostingError>>;
-  verifyAccessToken(
-    rawToken: string,
-  ): Promise<{ userId: UserId; email: string; name: string } | null>;
   // per-app sessions (google mode) + the apex→tenant one-time-code handoff
   createSsoCode(appId: AppId, userId: UserId): Promise<string>;
   redeemSsoCode(rawCode: string, appId: AppId): Promise<{ userId: UserId } | null>;
@@ -133,26 +114,8 @@ const deploymentChecksum = (files: DeployFile[]): string => {
   return h.digest("base64url");
 };
 
-const validateFiles = (files: DeployFile[]): HostingError | null => {
-  if (files.length === 0) return { kind: "invalid_input", message: "no files in deployment" };
-  if (files.length > DEPLOY_MAX_FILES) {
-    return { kind: "invalid_input", message: `too many files (max ${DEPLOY_MAX_FILES})` };
-  }
-  let total = 0;
-  for (const f of files) {
-    if (!isSafeDeployPath(f.path)) {
-      return { kind: "invalid_input", message: `unsafe file path: ${f.path}` };
-    }
-    total += f.bytes.byteLength;
-  }
-  if (total > DEPLOY_MAX_TOTAL_BYTES) {
-    return { kind: "invalid_input", message: `deployment exceeds ${DEPLOY_MAX_TOTAL_BYTES} bytes` };
-  }
-  if (!files.some((f) => f.path === "index.html")) {
-    return { kind: "invalid_input", message: "deployment must contain an index.html at the root" };
-  }
-  return null;
-};
+const isFileNotFound = (e: unknown): boolean =>
+  e instanceof Error && "code" in e && e.code === "ENOENT";
 
 export const createHostingService = (db: Db, opts: { appsDir: string }): HostingService => {
   const appById = async (appId: AppId) => {
@@ -322,7 +285,7 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
     },
 
     async createDeployment(appId, files, by) {
-      const bad = validateFiles(files);
+      const bad = validateDeploymentFiles(files);
       if (bad !== null) return err(bad);
       const app = await appById(appId);
       if (app === undefined) return err({ kind: "not_found" });
@@ -361,6 +324,19 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         .set({ currentDeploymentId: deploymentId, updatedAt: now })
         .where(eq(apps.id, appId));
       return ok(rowToDeployment(row));
+    },
+
+    async readCurrentDeploymentFiles(appId) {
+      const app = await appById(appId);
+      if (app === undefined || app.currentDeploymentId === null) return [];
+      try {
+        return await readDeployment(join(opts.appsDir, app.slug, app.currentDeploymentId));
+      } catch (e) {
+        // currentDeploymentId can outlive its on-disk version dir (volume/DB skew);
+        // treat a missing directory as "no files" rather than leaking an FS error.
+        if (isFileNotFound(e)) return [];
+        throw e;
+      }
     },
 
     async activateDeployment(appId, deploymentId) {
@@ -430,67 +406,6 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         .orderBy(desc(accessLog.createdAt))
         .limit(limit);
       return rows.map(rowToAccessLogEntry);
-    },
-
-    async listTokens(ownerId) {
-      const rows = await db
-        .select()
-        .from(accessTokens)
-        .where(eq(accessTokens.ownerUserId, ownerId))
-        .orderBy(desc(accessTokens.createdAt));
-      return rows.map(rowToTokenView);
-    },
-
-    async createToken(ownerId, label) {
-      const token = generatePat();
-      const inserted = await db
-        .insert(accessTokens)
-        .values({
-          id: ulid(),
-          tokenHash: hashToken(token),
-          ownerUserId: ownerId,
-          label,
-          createdAt: new Date(),
-          lastUsedAt: null,
-          revokedAt: null,
-        })
-        .returning();
-      const row = inserted[0];
-      if (row === undefined) return err({ kind: "not_found" });
-      return ok({ token, view: rowToTokenView(row) });
-    },
-
-    async revokeToken(ownerId, tokenId) {
-      const updated = await db
-        .update(accessTokens)
-        .set({ revokedAt: new Date() })
-        .where(and(eq(accessTokens.id, tokenId), eq(accessTokens.ownerUserId, ownerId)))
-        .returning({ id: accessTokens.id });
-      const row = updated[0];
-      return row === undefined ? err({ kind: "not_found" }) : ok({ id: row.id });
-    },
-
-    async verifyAccessToken(rawToken) {
-      if (!rawToken.startsWith(PAT_PREFIX)) return null;
-      const rows = await db
-        .select()
-        .from(accessTokens)
-        .where(eq(accessTokens.tokenHash, hashToken(rawToken)))
-        .limit(1);
-      const row = rows[0];
-      if (row === undefined || row.revokedAt !== null) return null;
-      const ownerRows = await db
-        .select({ id: users.id, email: users.email, name: users.name })
-        .from(users)
-        .where(eq(users.id, row.ownerUserId))
-        .limit(1);
-      const owner = ownerRows[0];
-      if (owner === undefined) return null;
-      await db
-        .update(accessTokens)
-        .set({ lastUsedAt: new Date() })
-        .where(eq(accessTokens.id, row.id));
-      return { userId: parseUserId(owner.id), email: owner.email, name: owner.name };
     },
 
     async createSsoCode(appId, userId) {

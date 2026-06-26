@@ -42,18 +42,6 @@ importers:
         specifier: 5.7.2
         version: 5.7.2
 
-  apps/cli:
-    dependencies:
-      '@quick/app-hosting':
-        specifier: workspace:*
-        version: link:../../packages/app-hosting
-      '@quick/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      valibot:
-        specifier: 1.4.0
-        version: 1.4.0(typescript@5.7.2)
-
   apps/server:
     dependencies:
       '@quick/app-files':

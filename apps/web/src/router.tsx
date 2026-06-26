@@ -10,7 +10,6 @@ import { AppsScreen } from "@/features/apps/AppsScreen";
 import { CreateAppScreen } from "@/features/apps/CreateAppScreen";
 import { ConsentScreen } from "@/features/auth/ConsentScreen";
 import { SignInScreen } from "@/features/auth/SignInScreen";
-import { TokensScreen } from "@/features/tokens/TokensScreen";
 
 const Dashboard = ({ children }: { children: ReactNode }): React.ReactElement => (
   <AuthGuard>
@@ -82,23 +81,12 @@ export const appDetailRoute = createRoute({
   },
 });
 
-export const tokensRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/tokens",
-  component: () => (
-    <Dashboard>
-      <TokensScreen />
-    </Dashboard>
-  ),
-});
-
 const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
   consentRoute,
   newAppRoute,
   appDetailRoute,
-  tokensRoute,
 ]);
 
 export const router = createRouter({

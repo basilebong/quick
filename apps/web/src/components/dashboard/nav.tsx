@@ -1,4 +1,4 @@
-import { type Icon, KeyIcon, SignOutIcon, SquaresFourIcon } from "@phosphor-icons/react";
+import { type Icon, SignOutIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import { useRouter } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -14,7 +14,7 @@ import { signOut } from "@/lib/auth-client";
 import { useOwner } from "@/lib/owner";
 
 type NavItem = {
-  to: "/" | "/tokens";
+  to: "/";
   label: string;
   icon: Icon;
   exact: boolean;
@@ -22,7 +22,6 @@ type NavItem = {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { to: "/", label: "Apps", icon: SquaresFourIcon, exact: true },
-  { to: "/tokens", label: "Tokens", icon: KeyIcon, exact: false },
 ];
 
 export const ownerInitial = (owner: { email: string; name: string }): string => {

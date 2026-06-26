@@ -12,7 +12,6 @@ import {
   createServeAppStatic,
   createSsoCallback,
   createSsoGrant,
-  createTokenRoutes,
 } from "@quick/app-hosting/server";
 import {
   type StoreService,
@@ -94,16 +93,12 @@ export const createApp = (o: ComposeOptions) => {
     )
     .use("/api/*", cors({ origin: o.baseURL, credentials: true }))
     .use("/api/*", createOriginCheck())
-    .use(
-      "/api/*",
-      createOwnerAuth({ auth: o.auth, allowedEmails: o.allowedEmails, service: o.hosting }),
-    )
+    .use("/api/*", createOwnerAuth({ auth: o.auth, allowedEmails: o.allowedEmails }))
     .use("/api/*", createIdempotency(o.db))
     .get("/api/me", (c) => c.json({ user: c.var.user }))
     .route("/api/apps/:appId/records", createStoreAdminRoutes({ service: o.store }))
     .route("/api/apps/:appId/files", createFilesAdminRoutes({ service: o.files }))
     .route("/api/apps", createHostingRoutes({ service: o.hosting }))
-    .route("/api/tokens", createTokenRoutes({ service: o.hosting }))
     .route(
       "/",
       createSsoGrant({

@@ -1,5 +1,5 @@
 import type { HostingService } from "@quick/app-hosting/server";
-import { registerHostingTools } from "@quick/app-hosting/tools";
+import { QUICK_BUILD_GUIDE, registerHostingTools } from "@quick/app-hosting/tools";
 import {
   type AuditRecorder,
   createAuthServerMetadataHandler,
@@ -26,19 +26,24 @@ export type McpDeps = {
 export const mountMcp = (deps: McpDeps) => {
   const config = deriveMcpAuthConfig(deps.baseURL, deps.jwksOrigin);
   // Owner-gated: any Google account can mint an MCP token, so we only expose the
-  // hosting tools when the token's subject is on the owner allowlist.
+  // hosting tools — and the build guide that documents them — when the token's
+  // subject is on the owner allowlist. A non-owner gets a bare, capability-less server.
   const handle = createMcpAuthGuard(config)(async (req, actor) => {
     const owner = await deps.isOwner(actor);
-    return runMcpRequest((server) => {
-      if (owner) {
-        registerHostingTools(server, {
-          service: deps.hosting,
-          actor,
-          audit: deps.audit,
-          appUrl: deps.appUrl,
-        });
-      }
-    }, req);
+    return runMcpRequest(
+      (server) => {
+        if (owner) {
+          registerHostingTools(server, {
+            service: deps.hosting,
+            actor,
+            audit: deps.audit,
+            appUrl: deps.appUrl,
+          });
+        }
+      },
+      req,
+      owner ? { instructions: QUICK_BUILD_GUIDE } : undefined,
+    );
   });
 
   const authServerMetadata = createAuthServerMetadataHandler(deps.baseURL);

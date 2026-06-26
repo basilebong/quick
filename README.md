@@ -6,7 +6,8 @@ built on Bun · Hono · React · SQLite.
 
 ## What it does
 
-- `quick deploy ./my-app` → your static site is live at `my-app.quick.<domain>` with automatic TLS.
+- Ask **Claude** (over MCP) to deploy a set of files → your static app is live at
+  `my-app.quick.<domain>` with automatic TLS.
 - **Per-app sharing, modelled on Google Drive:**
   - **Google sign-in** — anyone who has the link and signs in with Google can view (identity is
     recorded for the access log). No allowlist.
@@ -14,7 +15,7 @@ built on Bun · Hono · React · SQLite.
 - **Building blocks** for static apps, called over `/_api/*` on the app's own origin:
   - a per-app document **database**, and
   - per-app **file storage**.
-- An owner **dashboard**, a `quick` **CLI**, and **Claude (MCP) tools** to drive it all.
+- An owner **dashboard** and **Claude (MCP) tools** to drive it all.
 
 ## Stack
 
@@ -41,7 +42,6 @@ so apps can't read each other's storage; **no cookie is ever scoped to the paren
 apps/
   server/   single Bun runtime (composition only)
   web/      owner admin dashboard (React)
-  cli/      the `quick` CLI
 packages/
   core/         platform plumbing: ids, auth, db, tenancy middleware, SSO, MCP
   app-hosting/  app registry, deployments, share-links, access log, MCP tools
@@ -117,14 +117,19 @@ That starts:
 Give Caddy a minute to obtain certificates (`docker compose --profile prod logs -f caddy`), then open
 **https://quick.example.com** and sign in with an owner Google account.
 
-**5. Deploy an app.** Create a personal access token in the dashboard (**Tokens**), then from your
-machine:
+**5. Deploy an app.** Connect Claude to `https://quick.example.com/mcp` — it discovers the OAuth
+server and walks you through Google sign-in + the consent screen — then ask it to deploy:
 
-```bash
-quick deploy ./my-app     # → my-app.quick.example.com
-```
+> Deploy these files to `my-app` on Quick, then give me a 7-day secret link.
 
-**Updating:** re-run `docker compose --profile prod up -d --build` (migrations re-run idempotently).
+Claude calls `quick__deploy_files` and the app goes live at `my-app.quick.example.com`. To edit an
+existing app, Claude reads the current files back with `quick__get_app_files`, changes them, and
+re-deploys the full set (deploys are immutable, full-replacement versions; rollback from the
+dashboard). Apps Claude deploys can call the per-app building blocks — the document database at
+`/_api/db` and file storage at `/_api/files` — from their own client-side JS, so you can ask for
+dynamic, stateful apps, not just static pages.
+
+**Updating Quick itself:** re-run `docker compose --profile prod up -d --build` (migrations re-run idempotently).
 The included `.github/workflows/deploy.yml` can instead build the images and SSH-deploy on push.
 
 ## Development

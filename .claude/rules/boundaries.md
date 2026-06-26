@@ -6,8 +6,7 @@
   middleware (resolve-app, share-gate, origin-check, owner). Subpaths `./shared`
   (browser-safe) and `./server`.
 - `@quick/app-hosting` — app registry, immutable deployments, share links, access
-  log, personal access tokens, static serving, MCP tools. Subpaths `./shared`,
-  `./server`, `./tools`.
+  log, static serving, MCP tools. Subpaths `./shared`, `./server`, `./tools`.
 - `@quick/app-store` — the `/_api/db` building block. `./shared`, `./server`.
 - `@quick/app-files` — the `/_api/files` building block. `./shared`, `./server`.
 
@@ -19,9 +18,8 @@
 | `./server`  | no       | `./shared`, `@quick/core/server`, Drizzle, Hono, `bun:sqlite`, `node:*` |
 | `./tools`   | no       | `./shared`, `./server`, `@modelcontextprotocol/sdk`, Zod         |
 
-Dashboard UI lives in `apps/web` (not in packages). `apps/web` and `apps/cli` may
-import ONLY `*/shared`. Importing `/server` or `/tools` from browser or CLI code
-is a build error.
+Dashboard UI lives in `apps/web` (not in packages). `apps/web` may import ONLY
+`*/shared`. Importing `/server` or `/tools` from browser code is a build error.
 
 ## What MUST NOT appear under `src/shared/`
 
@@ -41,14 +39,13 @@ packages never import each other.
 
 ```
 apps/web     → app-*/shared, core/shared
-apps/cli     → app-hosting/shared, core/shared
 apps/server  → app-*/server, app-hosting/tools, core/server, core/shared
 app-*/server → app-*/shared, core/server, core/shared
 app-hosting/tools → app-hosting/server, app-hosting/shared, core/server, core/shared
 core/server  → core/shared
 ```
 
-`apps/server` may not import from `apps/web`/`apps/cli` and vice versa.
+`apps/server` may not import from `apps/web` and vice versa.
 
 ## How to check
 

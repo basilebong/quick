@@ -93,27 +93,29 @@ describe("composition (tenancy + CSRF wiring)", () => {
     });
   });
 
-  test("a personal access token is re-checked against the owner allowlist on every request", async () => {
+  test("the apex owner API is re-checked against the allowlist per request (session)", async () => {
     await withTestAuth({ baseURL: BASE }, async ({ auth, db, signSessionCookie }) => {
-      const { app, hosting, ownerId } = await build(auth, db, signSessionCookie);
-      const ownerTok = await hosting.createToken(ownerId, "cli");
-      if (ownerTok.kind !== "ok") throw new Error("createToken failed");
+      const { app, cookie } = await build(auth, db, signSessionCookie);
+
+      const okRes = await app.request(`${BASE}/api/me`, {
+        headers: { host: "quick.example.com", cookie, "sec-fetch-site": "same-origin" },
+      });
+      expect(okRes.status).toBe(200);
 
       const ctx = await auth.$context;
       const stranger = await ctx.internalAdapter.createUser({
         name: "Stranger",
         email: "stranger@example.com",
       });
-      const strangerTok = await hosting.createToken(parseUserId(stranger.id), "cli");
-      if (strangerTok.kind !== "ok") throw new Error("createToken failed");
-
-      const okRes = await app.request(`${BASE}/api/me`, {
-        headers: { host: "quick.example.com", authorization: `Bearer ${ownerTok.value.token}` },
-      });
-      expect(okRes.status).toBe(200);
+      const session = await ctx.internalAdapter.createSession(stranger.id);
+      const strangerCookie = `Quick.session_token=${await signSessionCookie(session.token)}`;
 
       const denied = await app.request(`${BASE}/api/me`, {
-        headers: { host: "quick.example.com", authorization: `Bearer ${strangerTok.value.token}` },
+        headers: {
+          host: "quick.example.com",
+          cookie: strangerCookie,
+          "sec-fetch-site": "same-origin",
+        },
       });
       expect(denied.status).toBe(403);
     });

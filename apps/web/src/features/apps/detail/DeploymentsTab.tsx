@@ -1,4 +1,4 @@
-import { RocketLaunchIcon, TerminalWindowIcon } from "@phosphor-icons/react";
+import { RocketLaunchIcon, SparkleIcon } from "@phosphor-icons/react";
 import type { AppSummary, Deployment } from "@quick/app-hosting/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,13 +15,15 @@ const DeployHint = (): React.ReactElement => (
   <Card>
     <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
       <span className="grid size-12 place-items-center rounded-2xl bg-secondary">
-        <TerminalWindowIcon size={24} className="text-secondary-foreground" />
+        <SparkleIcon size={24} className="text-secondary-foreground" />
       </span>
-      <div className="flex flex-col gap-1">
+      <div className="flex max-w-xs flex-col gap-1">
         <p className="font-medium text-foreground">No deployments yet</p>
-        <p className="text-muted-foreground text-sm">Deploy a folder to this app with the CLI:</p>
+        <p className="text-muted-foreground text-sm">
+          Ask Claude to deploy this app over MCP with the{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">quick__deploy_files</code> tool.
+        </p>
       </div>
-      <code className="rounded-lg bg-muted px-3 py-2 font-mono text-sm">quick deploy</code>
     </CardContent>
   </Card>
 );
