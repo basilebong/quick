@@ -9,7 +9,12 @@ import {
 } from "@quick/core/shared";
 import { match } from "ts-pattern";
 import * as z from "zod";
-import { type DeployFile, type HostingService, validateDeploymentFiles } from "../server/index.ts";
+import {
+  DEPLOY_MAX_FILES,
+  type DeployFile,
+  type HostingService,
+  validateDeploymentFiles,
+} from "../server/index.ts";
 import { type HostingError, MAX_ALLOWED_EMAILS } from "../shared/index.ts";
 
 // Canonical "how to build on Quick" guide. Surfaced two ways: the build_with_quick
@@ -20,9 +25,9 @@ export const QUICK_BUILD_GUIDE = `# Building apps on Quick
 Quick hosts static web apps. Each app is an immutable set of UTF-8 text files (HTML/CSS/JS/JSON), served at https://<slug>.<domain> on its own browser origin.
 
 ## Deploy and edit
-- quick__deploy_files — publish or update an app. The file set MUST include index.html at the root; nested paths like assets/app.js are fine. Re-deploying a slug REPLACES the entire file set with a new immutable version, so always send EVERY file you want live, not just the ones you changed.
-- quick__get_app_files — read an app's current files back before editing, then re-deploy the complete edited set. (Roll back to an earlier version from the dashboard.)
-- Binary assets aren't supported through the tool; inline small ones as data: URIs, or upload them at runtime via file storage (below).
+- quick__deploy_files — publish or update an app. The file set MUST include index.html at the root; nested paths like assets/app.js are fine. Re-deploying a slug REPLACES the entire file set with a new immutable version, so always send EVERY file you want live, not just the ones you changed — any path you omit is gone from the new version.
+- quick__get_app_files — read an app's current files back before editing, then re-deploy the complete edited set. (Roll back to an earlier version from the dashboard.) It returns UTF-8 text files only; any binary files in the current version are reported by path under binaryFiles with their content omitted, and CANNOT be sent back through quick__deploy_files — so a binary you don't recreate is dropped on the next deploy.
+- Binary assets aren't supported through the deploy tool; inline small ones as data: URIs in your text files, or have the app load them at runtime from file storage (below).
 
 ## Sharing
 - google mode (default): anyone who signs in with Google can view; optionally restrict to specific addresses with quick__set_allowed_emails.
@@ -159,7 +164,10 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
         'Publish a static app from a set of UTF-8 text files and make it live immediately at its URL. The set must include an index.html at the root; other files (CSS, JS, JSON, nested paths like assets/app.js) are served alongside it. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug REPLACES the entire file set with a new version and keeps the current share mode — send every file you want live, not just the ones you changed. Call quick__get_app_files first to fetch the current files when editing. Binary assets are not supported; inline small ones as data: URIs. Deployed apps can call their own per-app backends from client-side JS on the same origin — a JSON document store at /_api/db and file storage at /_api/files — so you can build dynamic, stateful apps, not just static pages.',
       inputSchema: {
         slug: z.string().min(1).max(63),
-        files: z.array(z.object({ path: z.string().min(1), content: z.string() })).min(1),
+        files: z
+          .array(z.object({ path: z.string().min(1), content: z.string() }))
+          .min(1)
+          .max(DEPLOY_MAX_FILES),
         shareMode: z.enum(["google", "link"]).optional(),
       },
     },
@@ -217,7 +225,7 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
     {
       title: "Get an app's files",
       description:
-        "Read back the files of an app's current live deployment so you can edit them and re-deploy. Returns each text file's path and UTF-8 content. Deploys are full-replacement, so send the complete edited set back to quick__deploy_files. Binary files are listed by path only (content omitted).",
+        "Read back the files of an app's current live deployment so you can edit them and re-deploy. Returns each text file's path and UTF-8 content. Deploys are full-replacement, so send the complete edited set back to quick__deploy_files. Binary files are listed by path only (content omitted) under binaryFiles; they cannot be re-deployed through quick__deploy_files, so any you don't recreate as a data: URI or load at runtime from file storage are dropped on the next deploy.",
       inputSchema: { slug: z.string().min(1) },
     },
     async ({ slug }) => {

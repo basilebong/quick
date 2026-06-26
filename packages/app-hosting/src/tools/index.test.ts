@@ -380,6 +380,8 @@ describe("build_with_quick prompt", () => {
       expect(msg.content.text).toContain("quick__deploy_files");
       expect(msg.content.text).toContain("/_api/db");
       expect(msg.content.text).toContain("/_api/files");
+      expect(msg.content.text).toContain("binaryFiles");
+      expect(msg.content.text).toContain("dropped on the next deploy");
     });
   });
 
@@ -395,10 +397,11 @@ describe("build_with_quick prompt", () => {
         "quick__list_share_links",
         "quick__revoke_share_link",
       ]);
+      const documentedNames = new Set(QUICK_BUILD_GUIDE.split(/[^a-zA-Z0-9_-]+/));
       const { tools } = await h.client.listTools();
       const undocumented = tools
         .map((t) => t.name)
-        .filter((name) => !omittedFromGuide.has(name) && !QUICK_BUILD_GUIDE.includes(name));
+        .filter((name) => !omittedFromGuide.has(name) && !documentedNames.has(name));
       expect(undocumented).toEqual([]);
     });
   });

@@ -114,6 +114,9 @@ const deploymentChecksum = (files: DeployFile[]): string => {
   return h.digest("base64url");
 };
 
+const isFileNotFound = (e: unknown): boolean =>
+  e instanceof Error && "code" in e && e.code === "ENOENT";
+
 export const createHostingService = (db: Db, opts: { appsDir: string }): HostingService => {
   const appById = async (appId: AppId) => {
     const rows = await db.select().from(apps).where(eq(apps.id, appId)).limit(1);
@@ -326,7 +329,14 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
     async readCurrentDeploymentFiles(appId) {
       const app = await appById(appId);
       if (app === undefined || app.currentDeploymentId === null) return [];
-      return readDeployment(join(opts.appsDir, app.slug, app.currentDeploymentId));
+      try {
+        return await readDeployment(join(opts.appsDir, app.slug, app.currentDeploymentId));
+      } catch (e) {
+        // currentDeploymentId can outlive its on-disk version dir (volume/DB skew);
+        // treat a missing directory as "no files" rather than leaking an FS error.
+        if (isFileNotFound(e)) return [];
+        throw e;
+      }
     },
 
     async activateDeployment(appId, deploymentId) {

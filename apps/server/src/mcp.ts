@@ -26,7 +26,8 @@ export type McpDeps = {
 export const mountMcp = (deps: McpDeps) => {
   const config = deriveMcpAuthConfig(deps.baseURL, deps.jwksOrigin);
   // Owner-gated: any Google account can mint an MCP token, so we only expose the
-  // hosting tools when the token's subject is on the owner allowlist.
+  // hosting tools — and the build guide that documents them — when the token's
+  // subject is on the owner allowlist. A non-owner gets a bare, capability-less server.
   const handle = createMcpAuthGuard(config)(async (req, actor) => {
     const owner = await deps.isOwner(actor);
     return runMcpRequest(
@@ -41,7 +42,7 @@ export const mountMcp = (deps: McpDeps) => {
         }
       },
       req,
-      { instructions: QUICK_BUILD_GUIDE },
+      owner ? { instructions: QUICK_BUILD_GUIDE } : undefined,
     );
   });
 

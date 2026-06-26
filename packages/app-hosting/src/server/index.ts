@@ -1,4 +1,9 @@
-export { type DeployFile, isSafeDeployPath, validateDeploymentFiles } from "./deploy.ts";
+export {
+  DEPLOY_MAX_FILES,
+  type DeployFile,
+  isSafeDeployPath,
+  validateDeploymentFiles,
+} from "./deploy.ts";
 export { createOwnerAuth, type OwnerUser, type OwnerVariables } from "./owner-auth.ts";
 export { createHostingRoutes, type HostingRoutes } from "./routes.ts";
 export { accessLog, apps, deployments, shareLinks } from "./schema.ts";

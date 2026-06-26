@@ -129,6 +129,16 @@ describe("hosting service", () => {
     expect(await service.readCurrentDeploymentFiles(parseAppId(undeployed.id))).toEqual([]);
   });
 
+  test("reading files when the on-disk version dir is gone returns [] without throwing", async () => {
+    const app = await newApp("vanished");
+    const appId = parseAppId(app.id);
+    const d = await service.createDeployment(appId, [file("index.html", "<h1>hi</h1>")], owner);
+    if (d.kind !== "ok") throw new Error("deploy failed");
+    rmSync(join(appsDir, "vanished", d.value.id), { recursive: true, force: true });
+
+    expect(await service.readCurrentDeploymentFiles(appId)).toEqual([]);
+  });
+
   test("renames an app (display name) without touching its slug", async () => {
     const app = await newApp("acme");
     const appId = parseAppId(app.id);
