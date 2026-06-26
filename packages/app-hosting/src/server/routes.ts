@@ -1,32 +1,19 @@
 import { IDEMPOTENCY_SKIP_HEADER } from "@quick/core/server";
-import {
-  parseAccessTokenId,
-  parseAppId,
-  parseDeploymentId,
-  parseShareLinkId,
-  parseUserId,
-} from "@quick/core/shared";
+import { parseAppId, parseDeploymentId, parseShareLinkId, parseUserId } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
 import type * as v from "valibot";
 import { safeParse } from "valibot";
 import {
   CreateAppInputSchema,
   CreateLinkInputSchema,
-  CreateTokenInputSchema,
-  DeployInputSchema,
   type HostingError,
   UpdateAppInputSchema,
   hostingErrorStatus,
 } from "../shared/index.ts";
-import { DEPLOY_MAX_TOTAL_BYTES, type DeployFile } from "./deploy.ts";
 import type { OwnerVariables } from "./owner-auth.ts";
 import type { HostingService } from "./service.ts";
 
 type Ctx = { Variables: OwnerVariables };
-
-// Reject before the body is buffered and base64-decoded. base64 inflates ~1.37x.
-const DEPLOY_BODY_LIMIT = Math.ceil(DEPLOY_MAX_TOTAL_BYTES * 1.4);
 
 const readBody = async <S extends v.GenericSchema>(
   c: Context,
@@ -47,9 +34,9 @@ const fail = (c: Context, e: HostingError) => c.json(e, hostingErrorStatus(e));
 const badBody = (c: Context) =>
   c.json({ kind: "invalid_input", message: "invalid request body" }, 400);
 
-// 201 for a body that contains a one-time plaintext secret (PAT / share-link
-// token). The skip header keeps the idempotency middleware from persisting the
-// secret at rest; it is stripped before the response leaves.
+// 201 for a body that contains a one-time plaintext secret (a share-link token).
+// The skip header keeps the idempotency middleware from persisting the secret at
+// rest; it is stripped before the response leaves.
 const createdSecret = (c: Context, value: unknown) => {
   c.header(IDEMPOTENCY_SKIP_HEADER, "1");
   return c.json(value, 201);
@@ -82,20 +69,6 @@ export const createHostingRoutes = (deps: { service: HostingService }) =>
     .get("/:appId/deployments", async (c) =>
       c.json({ deployments: await deps.service.listDeployments(parseAppId(c.req.param("appId"))) }),
     )
-    .post("/:appId/deployments", bodyLimit({ maxSize: DEPLOY_BODY_LIMIT }), async (c) => {
-      const body = await readBody(c, DeployInputSchema);
-      if (!body.ok) return badBody(c);
-      const files: DeployFile[] = body.value.files.map((f) => ({
-        path: f.path,
-        bytes: Buffer.from(f.content, "base64"),
-      }));
-      const r = await deps.service.createDeployment(
-        parseAppId(c.req.param("appId")),
-        files,
-        actorOf(c),
-      );
-      return r.kind === "ok" ? c.json({ deployment: r.value }, 201) : fail(c, r.error);
-    })
     .post("/:appId/deployments/:depId/activate", async (c) => {
       const r = await deps.service.activateDeployment(
         parseAppId(c.req.param("appId")),
@@ -127,23 +100,4 @@ export const createHostingRoutes = (deps: { service: HostingService }) =>
       c.json({ entries: await deps.service.listAccessLog(parseAppId(c.req.param("appId")), 200) }),
     );
 
-// Mounted at /api/tokens on the apex, behind createOwnerAuth.
-export const createTokenRoutes = (deps: { service: HostingService }) =>
-  new Hono<Ctx>()
-    .get("/", async (c) => c.json({ tokens: await deps.service.listTokens(actorOf(c)) }))
-    .post("/", async (c) => {
-      const body = await readBody(c, CreateTokenInputSchema);
-      if (!body.ok) return badBody(c);
-      const r = await deps.service.createToken(actorOf(c), body.value.label);
-      return r.kind === "ok" ? createdSecret(c, r.value) : fail(c, r.error);
-    })
-    .delete("/:tokenId", async (c) => {
-      const r = await deps.service.revokeToken(
-        actorOf(c),
-        parseAccessTokenId(c.req.param("tokenId")),
-      );
-      return r.kind === "ok" ? c.json({ id: r.value.id }) : fail(c, r.error);
-    });
-
 export type HostingRoutes = ReturnType<typeof createHostingRoutes>;
-export type TokenRoutes = ReturnType<typeof createTokenRoutes>;

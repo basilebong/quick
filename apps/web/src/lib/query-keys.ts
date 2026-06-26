@@ -7,5 +7,4 @@ export const queryKeys = {
   accessLog: (appId: string) => ["apps", appId, "access-log"] as const,
   records: (appId: string) => ["apps", appId, "records"] as const,
   files: (appId: string) => ["apps", appId, "files"] as const,
-  tokens: ["tokens"] as const,
 };

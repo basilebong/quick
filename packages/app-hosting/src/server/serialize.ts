@@ -1,19 +1,7 @@
 import type { AppContext } from "@quick/core/server";
 import { type ShareMode, parseAppId, parseAppSlug, parseDeploymentId } from "@quick/core/shared";
-import type {
-  AccessLogEntry,
-  AccessTokenView,
-  AppSummary,
-  Deployment,
-  ShareLinkView,
-} from "../shared/index.ts";
-import type {
-  AccessLogRow,
-  AccessTokenRow,
-  AppRow,
-  DeploymentRow,
-  ShareLinkRow,
-} from "./schema.ts";
+import type { AccessLogEntry, AppSummary, Deployment, ShareLinkView } from "../shared/index.ts";
+import type { AccessLogRow, AppRow, DeploymentRow, ShareLinkRow } from "./schema.ts";
 
 const shareModeOf = (raw: string): ShareMode => (raw === "link" ? "link" : "google");
 
@@ -72,12 +60,4 @@ export const rowToAccessLogEntry = (row: AccessLogRow): AccessLogEntry => ({
   path: row.path,
   ip: row.ip,
   createdAt: row.createdAt.getTime(),
-});
-
-export const rowToTokenView = (row: AccessTokenRow): AccessTokenView => ({
-  id: row.id,
-  label: row.label,
-  createdAt: row.createdAt.getTime(),
-  lastUsedAt: row.lastUsedAt === null ? null : row.lastUsedAt.getTime(),
-  revokedAt: row.revokedAt === null ? null : row.revokedAt.getTime(),
 });

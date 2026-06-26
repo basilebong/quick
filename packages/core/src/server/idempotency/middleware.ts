@@ -6,9 +6,9 @@ import { idempotencyKeys } from "./schema.ts";
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-// A handler whose response body carries a freshly minted plaintext secret (a PAT
-// or a share-link token, shown to the owner exactly once) sets this header to opt
-// out of body caching — otherwise the secret would be persisted at rest in the
+// A handler whose response body carries a freshly minted plaintext secret (a
+// share-link token, shown to the owner exactly once) sets this header to opt out
+// of body caching — otherwise the secret would be persisted at rest in the
 // idempotency table. The middleware strips it before the response leaves. See
 // .claude/rules/security.md (Secrets at rest).
 export const IDEMPOTENCY_SKIP_HEADER = "x-quick-idempotency-skip";

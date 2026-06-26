@@ -111,13 +111,22 @@ describe("hosting service", () => {
     expect((await service.validateLinkToken(appId, live.value.token)).kind).toBe("invalid");
   });
 
-  test("personal access tokens verify back to the owner", async () => {
-    const created = await service.createToken(owner, "ci");
-    if (created.kind !== "ok") throw new Error("createToken failed");
-    const resolved = await service.verifyAccessToken(created.value.token);
-    expect(resolved?.email).toBe("owner@example.com");
-    expect(await service.verifyAccessToken("quick_pat_bogus")).toBeNull();
-    expect(await service.verifyAccessToken("not-even-a-pat")).toBeNull();
+  test("reads back the current deployment's files for editing", async () => {
+    const app = await newApp("readable");
+    const appId = parseAppId(app.id);
+    await service.createDeployment(
+      appId,
+      [file("index.html", "<h1>hi</h1>"), file("assets/app.js", "const a = 1")],
+      owner,
+    );
+
+    const files = await service.readCurrentDeploymentFiles(appId);
+    const byPath = new Map(files.map((f) => [f.path, new TextDecoder().decode(f.bytes)]));
+    expect(byPath.get("index.html")).toBe("<h1>hi</h1>");
+    expect(byPath.get("assets/app.js")).toBe("const a = 1");
+
+    const undeployed = await newApp("blank");
+    expect(await service.readCurrentDeploymentFiles(parseAppId(undeployed.id))).toEqual([]);
   });
 
   test("renames an app (display name) without touching its slug", async () => {

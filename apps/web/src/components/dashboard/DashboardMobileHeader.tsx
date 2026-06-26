@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 
 import { Wordmark } from "@/components/Wordmark";
 import { AccountMenu, ownerInitial } from "@/components/dashboard/nav";
-import { cn } from "@/lib/cn";
 import { useOwner } from "@/lib/owner";
 
 export const DashboardMobileHeader = (): React.ReactElement => {
@@ -16,16 +15,6 @@ export const DashboardMobileHeader = (): React.ReactElement => {
         </Link>
 
         <nav className="flex items-center gap-1">
-          <Link
-            to="/tokens"
-            className={cn(
-              "flex min-h-11 items-center rounded-md px-3 font-medium text-muted-foreground text-sm transition-colors",
-              "hover:bg-accent hover:text-accent-foreground",
-              "[&.active]:text-foreground",
-            )}
-          >
-            Tokens
-          </Link>
           <AccountMenu
             align="end"
             trigger={

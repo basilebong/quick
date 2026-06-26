@@ -1,5 +1,5 @@
 import type { HostingService } from "@quick/app-hosting/server";
-import { registerHostingTools } from "@quick/app-hosting/tools";
+import { QUICK_BUILD_GUIDE, registerHostingTools } from "@quick/app-hosting/tools";
 import {
   type AuditRecorder,
   createAuthServerMetadataHandler,
@@ -29,16 +29,20 @@ export const mountMcp = (deps: McpDeps) => {
   // hosting tools when the token's subject is on the owner allowlist.
   const handle = createMcpAuthGuard(config)(async (req, actor) => {
     const owner = await deps.isOwner(actor);
-    return runMcpRequest((server) => {
-      if (owner) {
-        registerHostingTools(server, {
-          service: deps.hosting,
-          actor,
-          audit: deps.audit,
-          appUrl: deps.appUrl,
-        });
-      }
-    }, req);
+    return runMcpRequest(
+      (server) => {
+        if (owner) {
+          registerHostingTools(server, {
+            service: deps.hosting,
+            actor,
+            audit: deps.audit,
+            appUrl: deps.appUrl,
+          });
+        }
+      },
+      req,
+      { instructions: QUICK_BUILD_GUIDE },
+    );
   });
 
   const authServerMetadata = createAuthServerMetadataHandler(deps.baseURL);

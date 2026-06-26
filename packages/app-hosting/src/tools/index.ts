@@ -9,8 +9,43 @@ import {
 } from "@quick/core/shared";
 import { match } from "ts-pattern";
 import * as z from "zod";
-import type { HostingService } from "../server/index.ts";
+import { type DeployFile, type HostingService, validateDeploymentFiles } from "../server/index.ts";
 import { type HostingError, MAX_ALLOWED_EMAILS } from "../shared/index.ts";
+
+// Canonical "how to build on Quick" guide. Surfaced two ways: the build_with_quick
+// MCP prompt (user-invokable) and the server `instructions` (auto-surfaced), so the
+// endpoint contracts live in exactly one place.
+export const QUICK_BUILD_GUIDE = `# Building apps on Quick
+
+Quick hosts static web apps. Each app is an immutable set of UTF-8 text files (HTML/CSS/JS/JSON), served at https://<slug>.<domain> on its own browser origin.
+
+## Deploy and edit
+- quick__deploy_files — publish or update an app. The file set MUST include index.html at the root; nested paths like assets/app.js are fine. Re-deploying a slug REPLACES the entire file set with a new immutable version, so always send EVERY file you want live, not just the ones you changed.
+- quick__get_app_files — read an app's current files back before editing, then re-deploy the complete edited set. (Roll back to an earlier version from the dashboard.)
+- Binary assets aren't supported through the tool; inline small ones as data: URIs, or upload them at runtime via file storage (below).
+
+## Sharing
+- google mode (default): anyone who signs in with Google can view; optionally restrict to specific addresses with quick__set_allowed_emails.
+- link mode: access only via an expiring secret link from quick__create_share_link.
+
+## Per-app backends (the building blocks)
+A deployed app's own client-side JS can call two backends on its own origin with same-origin fetch (e.g. fetch("/_api/db/todos")). The signed-in viewer's session authorizes the request, so NEVER put API keys or tokens in the page. All data is scoped to that one app.
+
+Document store — /_api/db/<collection>:
+- GET    /_api/db/<collection>        -> { records }   list
+- POST   /_api/db/<collection>        -> { record }    create (JSON body)
+- GET    /_api/db/<collection>/<id>   -> { record }    read one
+- PUT    /_api/db/<collection>/<id>   -> { record }    replace (JSON body)
+- PATCH  /_api/db/<collection>/<id>   -> { record }    merge (JSON body)
+- DELETE /_api/db/<collection>/<id>   -> { id }        delete
+
+File storage — /_api/files:
+- GET    /_api/files?prefix=<p>       -> { files }      list
+- POST   /_api/files?path=<path>      -> { file }       upload (raw body + Content-Type header)
+- GET    /_api/files/<path>           -> the file bytes
+- DELETE /_api/files/<path>           -> { path }       delete
+
+Prefer these building blocks over external services so apps stay self-contained. Build dynamic, stateful apps — not just static pages.`;
 
 // All hosting tools are OWNER-only; mcp.ts only registers them when the MCP
 // caller's identity is on the owner allowlist (any Google account can mint an
@@ -45,6 +80,20 @@ const safely = async (label: string, p: Promise<void>): Promise<void> => {
 export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): void => {
   const { service, actor, audit, appUrl } = deps;
 
+  server.registerPrompt(
+    "build_with_quick",
+    {
+      title: "Build an app with Quick",
+      description:
+        "How to create, deploy, edit, and share an app on Quick — including the per-app document database and file storage that deployed apps can call from their own client-side JS.",
+    },
+    () => ({
+      messages: [
+        { role: "user" as const, content: { type: "text" as const, text: QUICK_BUILD_GUIDE } },
+      ],
+    }),
+  );
+
   server.registerTool(
     "quick__list_apps",
     {
@@ -76,7 +125,7 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
     {
       title: "Create app",
       description:
-        "Register a new app slug with a share mode (it has no deployment until you run `quick deploy`).",
+        "Register a new app slug with a share mode (it has no deployment until you publish files with quick__deploy_files).",
       inputSchema: {
         slug: z.string().min(1).max(63),
         name: z.string().trim().min(1).max(80),
@@ -103,18 +152,25 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
   );
 
   server.registerTool(
-    "quick__deploy_html",
+    "quick__deploy_files",
     {
-      title: "Deploy an HTML page",
+      title: "Deploy an app from files",
       description:
-        'Publish a single HTML page as an app and make it live immediately at its URL. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug adds a version and keeps its current share mode. For multi-file or binary apps, use the `quick` CLI.',
+        'Publish a static app from a set of UTF-8 text files and make it live immediately at its URL. The set must include an index.html at the root; other files (CSS, JS, JSON, nested paths like assets/app.js) are served alongside it. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug REPLACES the entire file set with a new version and keeps the current share mode — send every file you want live, not just the ones you changed. Call quick__get_app_files first to fetch the current files when editing. Binary assets are not supported; inline small ones as data: URIs. Deployed apps can call their own per-app backends from client-side JS on the same origin — a JSON document store at /_api/db and file storage at /_api/files — so you can build dynamic, stateful apps, not just static pages.',
       inputSchema: {
         slug: z.string().min(1).max(63),
-        html: z.string().min(1),
+        files: z.array(z.object({ path: z.string().min(1), content: z.string() })).min(1),
         shareMode: z.enum(["google", "link"]).optional(),
       },
     },
-    async ({ slug, html, shareMode }) => {
+    async ({ slug, files, shareMode }) => {
+      const deployFiles: DeployFile[] = files.map((f) => ({
+        path: f.path,
+        bytes: new TextEncoder().encode(f.content),
+      }));
+      const invalid = validateDeploymentFiles(deployFiles);
+      if (invalid !== null) return errorResult(invalid);
+
       const existing = await service.findBySlug(slug);
       let appId: AppId;
       let mode: ShareMode;
@@ -131,17 +187,16 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
         mode = existing.shareMode;
       }
 
-      const files = [{ path: "index.html", bytes: new TextEncoder().encode(html) }];
-      const r = await service.createDeployment(appId, files, actor);
+      const r = await service.createDeployment(appId, deployFiles, actor);
       if (r.kind === "err") return errorResult(r.error);
 
       await safely(
         "audit",
         audit.record({
           userId: actor,
-          action: "quick__deploy_html",
+          action: "quick__deploy_files",
           via: "mcp",
-          metadata: { slug, version: r.value.version },
+          metadata: { slug, version: r.value.version, fileCount: r.value.fileCount },
         }),
       );
       const url = appUrl(slug);
@@ -149,10 +204,54 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
         content: [
           {
             type: "text" as const,
-            text: `Deployed v${r.value.version} of "${slug}" (${mode}) → ${url}`,
+            text: `Deployed v${r.value.version} of "${slug}" (${mode}, ${r.value.fileCount} files) → ${url}`,
           },
         ],
         structuredContent: { url, shareMode: mode, deployment: r.value },
+      };
+    },
+  );
+
+  server.registerTool(
+    "quick__get_app_files",
+    {
+      title: "Get an app's files",
+      description:
+        "Read back the files of an app's current live deployment so you can edit them and re-deploy. Returns each text file's path and UTF-8 content. Deploys are full-replacement, so send the complete edited set back to quick__deploy_files. Binary files are listed by path only (content omitted).",
+      inputSchema: { slug: z.string().min(1) },
+    },
+    async ({ slug }) => {
+      const app = await service.findBySlug(slug);
+      if (app === null) return errorResult({ kind: "not_found" });
+      const raw = await service.readCurrentDeploymentFiles(app.id);
+      const decoder = new TextDecoder("utf-8", { fatal: true });
+      const files: { path: string; content: string }[] = [];
+      const binaryFiles: string[] = [];
+      for (const f of raw) {
+        try {
+          files.push({ path: f.path, content: decoder.decode(f.bytes) });
+        } catch {
+          binaryFiles.push(f.path);
+        }
+      }
+      await safely(
+        "audit",
+        audit.record({
+          userId: actor,
+          action: "quick__get_app_files",
+          via: "mcp",
+          metadata: { slug, fileCount: files.length },
+        }),
+      );
+      const text =
+        raw.length === 0
+          ? `No deployment yet for "${slug}".`
+          : `${files.length} file(s) in "${slug}":\n${files.map((f) => f.path).join("\n")}${
+              binaryFiles.length > 0 ? `\n(binary, omitted: ${binaryFiles.join(", ")})` : ""
+            }`;
+      return {
+        content: [{ type: "text" as const, text }],
+        structuredContent: { slug, files, binaryFiles },
       };
     },
   );

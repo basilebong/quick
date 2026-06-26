@@ -4,7 +4,7 @@ import { createMiddleware } from "hono/factory";
 // SameSite does not isolate apps; a sibling app's page could drive a request
 // here carrying the cookie the browser auto-attaches by destination. CSRF is
 // only possible when a cookie rides along, so the check is gated on a Cookie
-// header: a Bearer/PAT client (no cookie) is exempt, while any cookie-bearing
+// header: a cookieless client is exempt, while any cookie-bearing
 // state-changing request must prove same-origin. Fails CLOSED — a cookie with
 // no Sec-Fetch and no Origin/Referer is rejected. Preflight is left to CORS.
 export const createOriginCheck = () =>

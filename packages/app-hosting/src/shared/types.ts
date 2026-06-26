@@ -42,11 +42,3 @@ export type AccessLogEntry = {
   ip: string | null;
   createdAt: number;
 };
-
-export type AccessTokenView = {
-  id: string;
-  label: string;
-  createdAt: number;
-  lastUsedAt: number | null;
-  revokedAt: number | null;
-};
