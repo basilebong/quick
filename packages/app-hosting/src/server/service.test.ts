@@ -111,7 +111,7 @@ describe("hosting service", () => {
     expect((await service.validateLinkToken(appId, live.value.token)).kind).toBe("invalid");
   });
 
-  test("reads back the current deployment's files for editing", async () => {
+  test("lists the current deployment's file map (paths + sizes) without contents", async () => {
     const app = await newApp("readable");
     const appId = parseAppId(app.id);
     await service.createDeployment(
@@ -120,23 +120,46 @@ describe("hosting service", () => {
       owner,
     );
 
-    const files = await service.readCurrentDeploymentFiles(appId);
-    const byPath = new Map(files.map((f) => [f.path, new TextDecoder().decode(f.bytes)]));
-    expect(byPath.get("index.html")).toBe("<h1>hi</h1>");
-    expect(byPath.get("assets/app.js")).toBe("const a = 1");
+    const files = await service.listCurrentDeploymentFiles(appId);
+    const byPath = new Map(files.map((f) => [f.path, f.size]));
+    expect(byPath.get("index.html")).toBe(new TextEncoder().encode("<h1>hi</h1>").byteLength);
+    expect(byPath.get("assets/app.js")).toBe(new TextEncoder().encode("const a = 1").byteLength);
 
     const undeployed = await newApp("blank");
-    expect(await service.readCurrentDeploymentFiles(parseAppId(undeployed.id))).toEqual([]);
+    expect(await service.listCurrentDeploymentFiles(parseAppId(undeployed.id))).toEqual([]);
   });
 
-  test("reading files when the on-disk version dir is gone returns [] without throwing", async () => {
+  test("reads a single file by path; rejects traversal, missing files, and undeployed apps", async () => {
+    const app = await newApp("readable-one");
+    const appId = parseAppId(app.id);
+    await service.createDeployment(
+      appId,
+      [file("index.html", "<h1>hi</h1>"), file("assets/app.js", "const a = 1")],
+      owner,
+    );
+
+    const index = await service.readCurrentDeploymentFile(appId, "index.html");
+    expect(index === null ? null : new TextDecoder().decode(index)).toBe("<h1>hi</h1>");
+    const nested = await service.readCurrentDeploymentFile(appId, "assets/app.js");
+    expect(nested === null ? null : new TextDecoder().decode(nested)).toBe("const a = 1");
+
+    expect(await service.readCurrentDeploymentFile(appId, "nope.txt")).toBeNull();
+    expect(await service.readCurrentDeploymentFile(appId, "../../etc/passwd")).toBeNull();
+
+    const undeployed = await newApp("blank-one");
+    expect(
+      await service.readCurrentDeploymentFile(parseAppId(undeployed.id), "index.html"),
+    ).toBeNull();
+  });
+
+  test("listing files when the on-disk version dir is gone returns [] without throwing", async () => {
     const app = await newApp("vanished");
     const appId = parseAppId(app.id);
     const d = await service.createDeployment(appId, [file("index.html", "<h1>hi</h1>")], owner);
     if (d.kind !== "ok") throw new Error("deploy failed");
     rmSync(join(appsDir, "vanished", d.value.id), { recursive: true, force: true });
 
-    expect(await service.readCurrentDeploymentFiles(appId)).toEqual([]);
+    expect(await service.listCurrentDeploymentFiles(appId)).toEqual([]);
   });
 
   test("renames an app (display name) without touching its slug", async () => {
