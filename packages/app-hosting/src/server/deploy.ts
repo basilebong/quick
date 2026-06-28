@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { HostingError } from "../shared/index.ts";
 
@@ -57,10 +57,13 @@ export const writeDeployment = async (versionDir: string, files: DeployFile[]): 
   }
 };
 
-// Reads an immutable deployment back into memory as relative-pathed files, for
-// the read-then-redeploy edit loop (full-replace deploys carry no diff).
-export const readDeployment = async (versionDir: string): Promise<DeployFile[]> => {
-  const out: DeployFile[] = [];
+export type DeployFileInfo = { path: string; size: number };
+
+// Lists an immutable deployment's files (relative POSIX paths + byte sizes)
+// WITHOUT reading their contents — the cheap "what's in this app" map that lets
+// a caller pick which files to fetch instead of pulling every body at once.
+export const listDeployment = async (versionDir: string): Promise<DeployFileInfo[]> => {
+  const out: DeployFileInfo[] = [];
   const walk = async (dir: string): Promise<void> => {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
@@ -69,11 +72,32 @@ export const readDeployment = async (versionDir: string): Promise<DeployFile[]> 
         continue;
       }
       const rel = relative(versionDir, full).split(sep).join("/");
-      out.push({ path: rel, bytes: await readFile(full) });
+      out.push({ path: rel, size: (await stat(full)).size });
     }
   };
   await walk(versionDir);
   return out;
+};
+
+const isMissingFile = (e: unknown): boolean =>
+  e instanceof Error && "code" in e && (e.code === "ENOENT" || e.code === "EISDIR");
+
+// Reads one file from an immutable deployment by relative path. Re-checks that the
+// resolved path stays within the version dir (defense in depth on isSafeDeployPath).
+// Returns null if the path escapes the dir or the file does not exist.
+export const readDeploymentFile = async (
+  versionDir: string,
+  relPath: string,
+): Promise<Uint8Array | null> => {
+  const target = resolve(versionDir, relPath);
+  const within = relative(versionDir, target);
+  if (within.startsWith("..") || isAbsolute(within)) return null;
+  try {
+    return await readFile(target);
+  } catch (e) {
+    if (isMissingFile(e)) return null;
+    throw e;
+  }
 };
 
 export const removeAppDir = async (appsDir: string, slug: string): Promise<void> => {

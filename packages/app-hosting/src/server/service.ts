@@ -29,7 +29,9 @@ import type {
 import { normalizeEmail } from "../shared/index.ts";
 import {
   type DeployFile,
-  readDeployment,
+  type DeployFileInfo,
+  listDeployment,
+  readDeploymentFile,
   removeAppDir,
   validateDeploymentFiles,
   writeDeployment,
@@ -77,7 +79,8 @@ export type HostingService = {
     files: DeployFile[],
     by: UserId,
   ): Promise<Result<Deployment, HostingError>>;
-  readCurrentDeploymentFiles(appId: AppId): Promise<DeployFile[]>;
+  listCurrentDeploymentFiles(appId: AppId): Promise<DeployFileInfo[]>;
+  readCurrentDeploymentFile(appId: AppId, path: string): Promise<Uint8Array | null>;
   activateDeployment(
     appId: AppId,
     deploymentId: DeploymentId,
@@ -326,17 +329,23 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
       return ok(rowToDeployment(row));
     },
 
-    async readCurrentDeploymentFiles(appId) {
+    async listCurrentDeploymentFiles(appId) {
       const app = await appById(appId);
       if (app === undefined || app.currentDeploymentId === null) return [];
       try {
-        return await readDeployment(join(opts.appsDir, app.slug, app.currentDeploymentId));
+        return await listDeployment(join(opts.appsDir, app.slug, app.currentDeploymentId));
       } catch (e) {
         // currentDeploymentId can outlive its on-disk version dir (volume/DB skew);
         // treat a missing directory as "no files" rather than leaking an FS error.
         if (isFileNotFound(e)) return [];
         throw e;
       }
+    },
+
+    async readCurrentDeploymentFile(appId, path) {
+      const app = await appById(appId);
+      if (app === undefined || app.currentDeploymentId === null) return null;
+      return readDeploymentFile(join(opts.appsDir, app.slug, app.currentDeploymentId), path);
     },
 
     async activateDeployment(appId, deploymentId) {

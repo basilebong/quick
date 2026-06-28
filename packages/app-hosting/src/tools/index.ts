@@ -13,9 +13,10 @@ import {
   DEPLOY_MAX_FILES,
   type DeployFile,
   type HostingService,
+  isSafeDeployPath,
   validateDeploymentFiles,
 } from "../server/index.ts";
-import { type HostingError, MAX_ALLOWED_EMAILS } from "../shared/index.ts";
+import { type HostingError, MAX_ALLOWED_EMAILS, type ShareLinkView } from "../shared/index.ts";
 
 // Canonical "how to build on Quick" guide. Surfaced two ways: the build_with_quick
 // MCP prompt (user-invokable) and the server `instructions` (auto-surfaced), so the
@@ -26,7 +27,8 @@ Quick hosts static web apps. Each app is an immutable set of UTF-8 text files (H
 
 ## Deploy and edit
 - quick__deploy_files — publish or update an app. The file set MUST include index.html at the root; nested paths like assets/app.js are fine. Re-deploying a slug REPLACES the entire file set with a new immutable version, so always send EVERY file you want live, not just the ones you changed — any path you omit is gone from the new version.
-- quick__get_app_files — read an app's current files back before editing, then re-deploy the complete edited set. (Roll back to an earlier version from the dashboard.) It returns UTF-8 text files only; any binary files in the current version are reported by path under binaryFiles with their content omitted, and CANNOT be sent back through quick__deploy_files — so a binary you don't recreate is dropped on the next deploy.
+- quick__list_app_files — list the file map (every path + byte size) of an app's current deployment, without bodies. Cheap; call it first to see what an app contains, then read only the files you need.
+- quick__get_app_file — read one file's UTF-8 text content by path. To edit an app, fetch EVERY file you want to keep first, then re-deploy the complete set — quick__deploy_files REPLACES the whole deployment, so any file you don't send back is dropped. (Roll back to an earlier version from the dashboard.) Binary files can't be read or re-deployed this way: recreate small ones as data: URIs or load them at runtime from file storage, or they're dropped on the next deploy.
 - Binary assets aren't supported through the deploy tool; inline small ones as data: URIs in your text files, or have the app load them at runtime from file storage (below).
 
 ## Sharing
@@ -80,6 +82,20 @@ const safely = async (label: string, p: Promise<void>): Promise<void> => {
   } catch (e) {
     console.error(`hosting tool ${label} failed`, e);
   }
+};
+
+const decodeUtf8 = (bytes: Uint8Array): string | null => {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+};
+
+const linkStatus = (l: ShareLinkView): string => {
+  if (l.revokedAt !== null) return "revoked";
+  if (l.expired) return "expired";
+  return "active";
 };
 
 export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): void => {
@@ -161,7 +177,7 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
     {
       title: "Deploy an app from files",
       description:
-        'Publish a static app from a set of UTF-8 text files and make it live immediately at its URL. The set must include an index.html at the root; other files (CSS, JS, JSON, nested paths like assets/app.js) are served alongside it. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug REPLACES the entire file set with a new version and keeps the current share mode — send every file you want live, not just the ones you changed. Call quick__get_app_files first to fetch the current files when editing. Binary assets are not supported; inline small ones as data: URIs. Deployed apps can call their own per-app backends from client-side JS on the same origin — a JSON document store at /_api/db and file storage at /_api/files — so you can build dynamic, stateful apps, not just static pages.',
+        'Publish a static app from a set of UTF-8 text files and make it live immediately at its URL. The set must include an index.html at the root; other files (CSS, JS, JSON, nested paths like assets/app.js) are served alongside it. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug REPLACES the entire file set with a new version and keeps the current share mode — send every file you want live, not just the ones you changed. When editing, call quick__list_app_files to see the file map and quick__get_app_file to read each file first. Binary assets are not supported; inline small ones as data: URIs. Deployed apps can call their own per-app backends from client-side JS on the same origin — a JSON document store at /_api/db and file storage at /_api/files — so you can build dynamic, stateful apps, not just static pages.',
       inputSchema: {
         slug: z.string().min(1).max(63),
         files: z
@@ -221,45 +237,79 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
   );
 
   server.registerTool(
-    "quick__get_app_files",
+    "quick__list_app_files",
     {
-      title: "Get an app's files",
+      title: "List an app's files",
       description:
-        "Read back the files of an app's current live deployment so you can edit them and re-deploy. Returns each text file's path and UTF-8 content. Deploys are full-replacement, so send the complete edited set back to quick__deploy_files. Binary files are listed by path only (content omitted) under binaryFiles; they cannot be re-deployed through quick__deploy_files, so any you don't recreate as a data: URI or load at runtime from file storage are dropped on the next deploy.",
+        "List the file map of an app's current live deployment — every file path and its byte size, without contents. Cheap to call: use it to see what an app contains, then read individual files with quick__get_app_file. Returns an empty list if the app has no deployment yet.",
       inputSchema: { slug: z.string().min(1) },
     },
     async ({ slug }) => {
       const app = await service.findBySlug(slug);
       if (app === null) return errorResult({ kind: "not_found" });
-      const raw = await service.readCurrentDeploymentFiles(app.id);
-      const decoder = new TextDecoder("utf-8", { fatal: true });
-      const files: { path: string; content: string }[] = [];
-      const binaryFiles: string[] = [];
-      for (const f of raw) {
-        try {
-          files.push({ path: f.path, content: decoder.decode(f.bytes) });
-        } catch {
-          binaryFiles.push(f.path);
-        }
-      }
+      const files = await service.listCurrentDeploymentFiles(app.id);
       await safely(
         "audit",
         audit.record({
           userId: actor,
-          action: "quick__get_app_files",
+          action: "quick__list_app_files",
           via: "mcp",
           metadata: { slug, fileCount: files.length },
         }),
       );
       const text =
-        raw.length === 0
+        files.length === 0
           ? `No deployment yet for "${slug}".`
-          : `${files.length} file(s) in "${slug}":\n${files.map((f) => f.path).join("\n")}${
-              binaryFiles.length > 0 ? `\n(binary, omitted: ${binaryFiles.join(", ")})` : ""
-            }`;
+          : `${files.length} file(s) in "${slug}":\n${files
+              .map((f) => `${f.path} (${f.size} B)`)
+              .join("\n")}`;
       return {
         content: [{ type: "text" as const, text }],
-        structuredContent: { slug, files, binaryFiles },
+        structuredContent: { slug, files },
+      };
+    },
+  );
+
+  server.registerTool(
+    "quick__get_app_file",
+    {
+      title: "Read an app file",
+      description:
+        "Read one file's UTF-8 text content from an app's current live deployment, by path (e.g. index.html or assets/app.js). Call quick__list_app_files first to see the available paths. To edit an app, fetch every file you want to keep and send the complete set back to quick__deploy_files — it replaces the whole deployment, so any file you don't resend is dropped. Binary files have no UTF-8 text and cannot be read this way.",
+      inputSchema: { slug: z.string().min(1), path: z.string().min(1) },
+    },
+    async ({ slug, path }) => {
+      const app = await service.findBySlug(slug);
+      if (app === null) return errorResult({ kind: "not_found" });
+      if (!isSafeDeployPath(path)) {
+        return errorResult({ kind: "invalid_input", message: `Unsafe file path: ${path}` });
+      }
+      const bytes = await service.readCurrentDeploymentFile(app.id, path);
+      if (bytes === null) {
+        return errorResult({
+          kind: "invalid_input",
+          message: `No file "${path}" in the current deployment of "${slug}".`,
+        });
+      }
+      const content = decodeUtf8(bytes);
+      if (content === null) {
+        return errorResult({
+          kind: "invalid_input",
+          message: `"${path}" is a binary file; it has no UTF-8 text content.`,
+        });
+      }
+      await safely(
+        "audit",
+        audit.record({
+          userId: actor,
+          action: "quick__get_app_file",
+          via: "mcp",
+          metadata: { slug, path },
+        }),
+      );
+      return {
+        content: [{ type: "text" as const, text: content }],
+        structuredContent: { slug, path, content },
       };
     },
   );
@@ -320,8 +370,19 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
           metadata: { slug, count: links.length },
         }),
       );
+      const text =
+        links.length === 0
+          ? `No share links for ${slug}.`
+          : `${links.length} link(s) for ${slug}:\n${links
+              .map(
+                (l) =>
+                  `${l.id}${l.label ? ` "${l.label}"` : ""} — ${linkStatus(l)}, expires ${new Date(
+                    l.expiresAt,
+                  ).toISOString()}`,
+              )
+              .join("\n")}`;
       return {
-        content: [{ type: "text" as const, text: `${links.length} link(s) for ${slug}.` }],
+        content: [{ type: "text" as const, text }],
         structuredContent: { links },
       };
     },

@@ -43,10 +43,29 @@ const textOf = (content: Awaited<ReturnType<Client["callTool"]>>["content"]): st
   return block !== undefined && block.type === "text" ? block.text : "";
 };
 
+const allTextOf = (content: Awaited<ReturnType<Client["callTool"]>>["content"]): string => {
+  if (!Array.isArray(content)) return "";
+  const parts: string[] = [];
+  for (const block of content) {
+    if (block.type === "text") parts.push(block.text);
+  }
+  return parts.join("\n");
+};
+
 const file = (path: string, content: string) => ({ path, content });
 
-const FilesResultSchema = v.object({
-  files: v.array(v.object({ path: v.string(), content: v.string() })),
+const FileMapResultSchema = v.object({
+  files: v.array(v.object({ path: v.string(), size: v.number() })),
+});
+
+const FileResultSchema = v.object({
+  slug: v.string(),
+  path: v.string(),
+  content: v.string(),
+});
+
+const LinksResultSchema = v.object({
+  links: v.array(v.object({ id: v.string(), label: v.string() })),
 });
 
 describe("quick__deploy_files", () => {
@@ -215,28 +234,31 @@ describe("quick__deploy_files", () => {
   });
 });
 
-describe("quick__get_app_files", () => {
-  test("returns the current deployment's text files for editing", async () => {
+describe("quick__list_app_files", () => {
+  test("returns the file map (paths + sizes) without contents", async () => {
     await withTestAuth({}, async (ctx) => {
       const h = await setup(ctx);
       await h.client.callTool({
         name: "quick__deploy_files",
         arguments: {
           slug: "editable",
-          files: [file("index.html", "<h1>hi</h1>"), file("app.js", "const a = 1")],
+          files: [file("index.html", "<h1>hi</h1>"), file("assets/app.js", "const a = 1")],
         },
       });
 
       const res = await h.client.callTool({
-        name: "quick__get_app_files",
+        name: "quick__list_app_files",
         arguments: { slug: "editable" },
       });
 
       expect(res.isError ?? false).toBe(false);
-      const { files } = v.parse(FilesResultSchema, res.structuredContent);
-      const byPath = new Map(files.map((f) => [f.path, f.content]));
-      expect(byPath.get("index.html")).toBe("<h1>hi</h1>");
-      expect(byPath.get("app.js")).toBe("const a = 1");
+      const { files } = v.parse(FileMapResultSchema, res.structuredContent);
+      const byPath = new Map(files.map((f) => [f.path, f.size]));
+      expect(byPath.get("index.html")).toBe(new TextEncoder().encode("<h1>hi</h1>").byteLength);
+      expect(byPath.get("assets/app.js")).toBe(new TextEncoder().encode("const a = 1").byteLength);
+      const text = allTextOf(res.content);
+      expect(text).toContain("index.html");
+      expect(text).toContain("assets/app.js");
     });
   });
 
@@ -244,14 +266,99 @@ describe("quick__get_app_files", () => {
     await withTestAuth({}, async (ctx) => {
       const h = await setup(ctx);
       const res = await h.client.callTool({
-        name: "quick__get_app_files",
+        name: "quick__list_app_files",
         arguments: { slug: "ghost" },
       });
       expect(res.isError ?? false).toBe(true);
     });
   });
 
-  test("lists binary files by path with content omitted", async () => {
+  test("an app with no deployment returns no files", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const created = await h.service.createApp(
+        { slug: "empty", name: "empty", shareMode: "google" },
+        h.actor,
+      );
+      if (created.kind !== "ok") throw new Error("createApp failed");
+
+      const res = await h.client.callTool({
+        name: "quick__list_app_files",
+        arguments: { slug: "empty" },
+      });
+
+      expect(res.isError ?? false).toBe(false);
+      expect(res.structuredContent).toMatchObject({ files: [] });
+    });
+  });
+});
+
+describe("quick__get_app_file", () => {
+  test("returns one file's body in BOTH the text content channel and structuredContent", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: {
+          slug: "editable",
+          files: [file("index.html", "<h1>hi</h1>"), file("assets/app.js", "const a = 1")],
+        },
+      });
+
+      const res = await h.client.callTool({
+        name: "quick__get_app_file",
+        arguments: { slug: "editable", path: "assets/app.js" },
+      });
+
+      expect(res.isError ?? false).toBe(false);
+      const parsed = v.parse(FileResultSchema, res.structuredContent);
+      expect(parsed.content).toBe("const a = 1");
+      expect(allTextOf(res.content)).toContain("const a = 1");
+    });
+  });
+
+  test("an unknown slug errors", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const res = await h.client.callTool({
+        name: "quick__get_app_file",
+        arguments: { slug: "ghost", path: "index.html" },
+      });
+      expect(res.isError ?? false).toBe(true);
+    });
+  });
+
+  test("a missing file errors", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: { slug: "site", files: [file("index.html", "<h1>hi</h1>")] },
+      });
+      const res = await h.client.callTool({
+        name: "quick__get_app_file",
+        arguments: { slug: "site", path: "missing.js" },
+      });
+      expect(res.isError ?? false).toBe(true);
+    });
+  });
+
+  test("a traversal path errors", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: { slug: "site", files: [file("index.html", "<h1>hi</h1>")] },
+      });
+      const res = await h.client.callTool({
+        name: "quick__get_app_file",
+        arguments: { slug: "site", path: "../../etc/passwd" },
+      });
+      expect(res.isError ?? false).toBe(true);
+    });
+  });
+
+  test("a binary file errors (no UTF-8 text)", async () => {
     await withTestAuth({}, async (ctx) => {
       const h = await setup(ctx);
       const created = await h.service.createApp(
@@ -269,33 +376,45 @@ describe("quick__get_app_files", () => {
       );
 
       const res = await h.client.callTool({
-        name: "quick__get_app_files",
-        arguments: { slug: "mixed" },
+        name: "quick__get_app_file",
+        arguments: { slug: "mixed", path: "logo.png" },
       });
-
-      expect(res.isError ?? false).toBe(false);
-      expect(res.structuredContent).toMatchObject({ binaryFiles: ["logo.png"] });
-      const { files } = v.parse(FilesResultSchema, res.structuredContent);
-      expect(files.map((f) => f.path)).toEqual(["index.html"]);
+      expect(res.isError ?? false).toBe(true);
     });
   });
+});
 
-  test("an app with no deployment returns no files", async () => {
+describe("quick__list_share_links", () => {
+  test("surfaces link ids and labels in the text content channel, not just the count", async () => {
     await withTestAuth({}, async (ctx) => {
       const h = await setup(ctx);
-      const created = await h.service.createApp(
-        { slug: "empty", name: "empty", shareMode: "google" },
-        h.actor,
-      );
-      if (created.kind !== "ok") throw new Error("createApp failed");
-
-      const res = await h.client.callTool({
-        name: "quick__get_app_files",
-        arguments: { slug: "empty" },
+      await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: {
+          slug: "shared",
+          files: [file("index.html", "<!doctype html>x")],
+          shareMode: "link",
+        },
       });
 
+      const created = await h.client.callTool({
+        name: "quick__create_share_link",
+        arguments: { slug: "shared", expiresInHours: 24, label: "press kit" },
+      });
+      expect(created.isError ?? false).toBe(false);
+
+      const res = await h.client.callTool({
+        name: "quick__list_share_links",
+        arguments: { slug: "shared" },
+      });
       expect(res.isError ?? false).toBe(false);
-      expect(res.structuredContent).toMatchObject({ files: [] });
+      const { links } = v.parse(LinksResultSchema, res.structuredContent);
+      const link = links[0];
+      if (link === undefined) throw new Error("expected one link");
+      const text = allTextOf(res.content);
+      expect(text).toContain(link.id);
+      expect(text).toContain("press kit");
+      expect(text).toContain("active");
     });
   });
 });
@@ -378,9 +497,10 @@ describe("build_with_quick prompt", () => {
         throw new Error("expected a text prompt message");
       }
       expect(msg.content.text).toContain("quick__deploy_files");
+      expect(msg.content.text).toContain("quick__list_app_files");
+      expect(msg.content.text).toContain("quick__get_app_file");
       expect(msg.content.text).toContain("/_api/db");
       expect(msg.content.text).toContain("/_api/files");
-      expect(msg.content.text).toContain("binaryFiles");
       expect(msg.content.text).toContain("dropped on the next deploy");
     });
   });
