@@ -33,6 +33,12 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      # One advisory is ignored via pnpm.auditConfig.ignoreGhsas in package.json:
+      # GHSA-p2fr-6hmx-4528 (@better-auth/oauth-provider, CVSS 3.1) — cross-audience
+      # access-token escalation that requires >1 configured audience. Quick configures a
+      # single MCP resource (validAudiences: [mcpResource]), so it is not exploitable here.
+      # Its only fix ships in the 1.7.0 prerelease line; remove the ignore when we adopt 1.7.
+      # See .claude/rules/security.md § "Deferred advisories" and issue #13.
       - name: Audit known vulnerabilities (fail on moderate+)
         run: pnpm audit --audit-level=moderate
 
