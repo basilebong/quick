@@ -45,8 +45,11 @@ HARD rules for Quick, on top of the constitution.
 
 ## Deferred advisories
 
-`pnpm audit --audit-level=moderate` gates CI. Exactly one advisory is ignored, via
-`pnpm.auditConfig.ignoreGhsas` in the root `package.json`:
+CI runs two supply-chain gates: `pnpm audit --audit-level=moderate` and (PR-only)
+`actions/dependency-review-action`. They have separate ignore mechanisms, so a deferred
+advisory must be listed in BOTH: `pnpm.auditConfig.ignoreGhsas` (root `package.json`) and
+`allow-ghsas` (the dependency-review step in `.github/workflows/supply-chain.yml`). Exactly
+one advisory is deferred:
 
 - **GHSA-p2fr-6hmx-4528** — `@better-auth/oauth-provider`, CVSS 3.1 (moderate):
   unbound resource indicators let a client obtain an access token for an audience it
@@ -55,7 +58,7 @@ HARD rules for Quick, on top of the constitution.
   so there is no second audience to escalate to — **not exploitable in this config**.
   The fix ships only in the `1.7.0` prerelease line, and upgrading to 1.7 is a breaking
   migration (`@better-auth/mcp`, `/oauth2/*` endpoints, EOPT-incompatible RC types).
-  **Remove this ignore when we move to Better Auth 1.7 GA** (tracked in #13). The companion HIGH advisory
+  **Remove it from both gates when we move to Better Auth 1.7 GA** (tracked in #13). The companion HIGH advisory
   (stored XSS, GHSA-86j7-9j95-vpqj) is NOT ignored — it is fixed by pinning
   `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23.
 
