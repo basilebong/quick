@@ -1,6 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { createFilesService } from "@quick/app-files/server";
-import { createHostingService } from "@quick/app-hosting/server";
+import { createHostingService, createSlotsService } from "@quick/app-hosting/server";
 import { createStoreService } from "@quick/app-store/server";
 import {
   createAuditRecorder,
@@ -42,6 +42,7 @@ const auth = createAuth({
 });
 
 const hosting = createHostingService(db, { appsDir });
+const slots = createSlotsService(db);
 const store = createStoreService(db);
 const files = createFilesService(db);
 const audit = createAuditRecorder(db);
@@ -71,6 +72,7 @@ const app = createApp({
   allowedEmails,
   audit,
   hosting,
+  slots,
   store,
   files,
   isOwner,

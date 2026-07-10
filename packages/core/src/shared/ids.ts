@@ -37,6 +37,10 @@ export const AppFileIdSchema = v.pipe(v.string(), v.minLength(1), v.brand("AppFi
 export type AppFileId = v.InferOutput<typeof AppFileIdSchema>;
 export const parseAppFileId = (raw: unknown): AppFileId => v.parse(AppFileIdSchema, raw);
 
+export const AppSlotIdSchema = v.pipe(v.string(), v.minLength(1), v.brand("AppSlotId"));
+export type AppSlotId = v.InferOutput<typeof AppSlotIdSchema>;
+export const parseAppSlotId = (raw: unknown): AppSlotId => v.parse(AppSlotIdSchema, raw);
+
 export const AccessLogIdSchema = v.pipe(v.string(), v.minLength(1), v.brand("AccessLogId"));
 export type AccessLogId = v.InferOutput<typeof AccessLogIdSchema>;
 export const parseAccessLogId = (raw: unknown): AccessLogId => v.parse(AccessLogIdSchema, raw);

@@ -42,3 +42,26 @@ HARD rules for Quick, on top of the constitution.
   (scoping each app to its creator) would be a deliberate future feature, not a
   bug in this model; do not "fix" it by adding owner filters to the app queries —
   that would break the all-apps dashboard listing.
+
+## Deferred advisories
+
+CI runs two supply-chain gates: `pnpm audit --audit-level=moderate` and (PR-only)
+`actions/dependency-review-action`. They have separate ignore mechanisms, so a deferred
+advisory must be listed in BOTH: `pnpm.auditConfig.ignoreGhsas` (root `package.json`) and
+`allow-ghsas` (the dependency-review step in `.github/workflows/supply-chain.yml`). Exactly
+one advisory is deferred:
+
+- **GHSA-p2fr-6hmx-4528** — `@better-auth/oauth-provider`, CVSS 3.1 (moderate):
+  unbound resource indicators let a client obtain an access token for an audience it
+  wasn't consented for. The escalation requires **more than one** configured audience.
+  Quick's OAuth server sets a single MCP resource (`validAudiences: [mcpResource]`),
+  so there is no second audience to escalate to — **not exploitable in this config**.
+  The fix ships only in the `1.7.0` prerelease line, and upgrading to 1.7 is a breaking
+  migration (`@better-auth/mcp`, `/oauth2/*` endpoints, EOPT-incompatible RC types).
+  **Remove it from both gates when we move to Better Auth 1.7 GA** (tracked in #13). The companion HIGH advisory
+  (stored XSS, GHSA-86j7-9j95-vpqj) is NOT ignored — it is fixed by pinning
+  `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23.
+
+Do not add further entries without the same three things here: the ID, why we are not
+exposed, and the condition that removes it. Never lower `--audit-level` to dodge an
+advisory — that hides every future one too.

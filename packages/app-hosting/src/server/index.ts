@@ -6,8 +6,15 @@ export {
 } from "./deploy.ts";
 export { createOwnerAuth, type OwnerUser, type OwnerVariables } from "./owner-auth.ts";
 export { createHostingRoutes, type HostingRoutes } from "./routes.ts";
-export { accessLog, apps, deployments, shareLinks } from "./schema.ts";
+export { accessLog, apps, appSlots, deployments, shareLinks } from "./schema.ts";
 export { createHostingService, type HostingService } from "./service.ts";
+export {
+  createSlotsAdminRoutes,
+  createSlotsAppRoutes,
+  type SlotsAdminRoutes,
+  type SlotsAppRoutes,
+} from "./slot-routes.ts";
+export { createSlotsService, type SlotRead, type SlotsService } from "./slots-service.ts";
 export {
   createSsoCallback,
   createSsoGrant,

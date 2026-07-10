@@ -13,10 +13,17 @@ import {
   DEPLOY_MAX_FILES,
   type DeployFile,
   type HostingService,
+  type SlotsService,
   isSafeDeployPath,
   validateDeploymentFiles,
 } from "../server/index.ts";
-import { type HostingError, MAX_ALLOWED_EMAILS, type ShareLinkView } from "../shared/index.ts";
+import {
+  type HostingError,
+  MAX_ALLOWED_EMAILS,
+  type ShareLinkView,
+  type SlotDefinition,
+  validateSlotDefinitions,
+} from "../shared/index.ts";
 
 // Canonical "how to build on Quick" guide. Surfaced two ways: the build_with_quick
 // MCP prompt (user-invokable) and the server `instructions` (auto-surfaced), so the
@@ -29,7 +36,15 @@ Quick hosts static web apps. Each app is an immutable set of UTF-8 text files (H
 - quick__deploy_files — publish or update an app. The file set MUST include index.html at the root; nested paths like assets/app.js are fine. Re-deploying a slug REPLACES the entire file set with a new immutable version, so always send EVERY file you want live, not just the ones you changed — any path you omit is gone from the new version.
 - quick__list_app_files — list the file map (every path + byte size) of an app's current deployment, without bodies. Cheap; call it first to see what an app contains, then read only the files you need.
 - quick__get_app_file — read one file's UTF-8 text content by path. To edit an app, fetch EVERY file you want to keep first, then re-deploy the complete set — quick__deploy_files REPLACES the whole deployment, so any file you don't send back is dropped. (Roll back to an earlier version from the dashboard.) Binary files can't be read or re-deployed this way: recreate small ones as data: URIs or load them at runtime from file storage, or they're dropped on the next deploy.
-- Binary assets aren't supported through the deploy tool; inline small ones as data: URIs in your text files, or have the app load them at runtime from file storage (below).
+- Binary assets cannot be uploaded through the deploy tool. For images, declare image slots the owner fills from the dashboard (see Images below); for small graphics use inline SVG or data: URIs in your text files; or have the app load files at runtime from file storage (below).
+
+## Images
+The deploy tool is text-only, so images cannot be uploaded through it. Instead, declare image "slots" that the app owner fills from the dashboard, and reference them by URL.
+- Declare slots when you deploy: pass a slots array to quick__deploy_files, e.g. slots: [{ "key": "hero", "label": "Hero image", "accept": "image/png", "maxBytes": 2000000 }]. Only key is required — a stable lowercase id matching [a-z0-9][a-z0-9._-]* with no slashes. Optional: label, accept (one of image/png, image/jpeg, image/gif, image/webp, image/avif), and maxBytes (default 5 MB).
+- Reference a slot on the app's own origin: <img src="/_api/slots/hero" alt="...">. A declared-but-empty slot serves a placeholder image automatically, so the page renders before anyone uploads; when the owner fills it in the dashboard, the real image appears in place.
+- Fills persist across deploys (keyed by slot key). Re-send the same slots array on every deploy to keep a slot; a slot you stop declaring is hidden but its uploaded image is kept in case you declare it again. Omitting the slots argument entirely leaves existing slots unchanged.
+- Check which slots are filled with quick__list_slots. From the app's own client-side JS, GET /_api/slots returns the slot list (metadata only, no bytes) so you can render galleries or custom empty states.
+- Only the app owner uploads slot images, from the dashboard — there is no MCP tool to upload image bytes (bytes cannot travel through a tool call).
 
 ## Sharing
 - google mode (default): anyone who signs in with Google can view; optionally restrict to specific addresses with quick__set_allowed_emails.
@@ -59,6 +74,7 @@ Prefer these building blocks over external services so apps stay self-contained.
 // MCP token, so this gate is essential).
 export type HostingToolDeps = {
   service: HostingService;
+  slots: SlotsService;
   actor: UserId;
   audit: AuditRecorder;
   appUrl: (slug: string) => string;
@@ -69,6 +85,8 @@ const errorText = (e: HostingError): string =>
     .with({ kind: "not_found" }, () => "No such app.")
     .with({ kind: "invalid_input" }, (it) => it.message)
     .with({ kind: "conflict" }, (it) => it.message)
+    .with({ kind: "too_large" }, (it) => it.message)
+    .with({ kind: "unsupported_media_type" }, (it) => it.message)
     .exhaustive();
 
 const errorResult = (e: HostingError) => ({
@@ -98,8 +116,23 @@ const linkStatus = (l: ShareLinkView): string => {
   return "active";
 };
 
+type SlotArg = {
+  key: string;
+  label?: string | undefined;
+  accept?: string | undefined;
+  maxBytes?: number | undefined;
+};
+
+const toSlotDef = (s: SlotArg): SlotDefinition => {
+  const def: SlotDefinition = { key: s.key };
+  if (s.label !== undefined) def.label = s.label;
+  if (s.accept !== undefined) def.accept = s.accept;
+  if (s.maxBytes !== undefined) def.maxBytes = s.maxBytes;
+  return def;
+};
+
 export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): void => {
-  const { service, actor, audit, appUrl } = deps;
+  const { service, slots: slotsService, actor, audit, appUrl } = deps;
 
   server.registerPrompt(
     "build_with_quick",
@@ -177,7 +210,7 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
     {
       title: "Deploy an app from files",
       description:
-        'Publish a static app from a set of UTF-8 text files and make it live immediately at its URL. The set must include an index.html at the root; other files (CSS, JS, JSON, nested paths like assets/app.js) are served alongside it. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug REPLACES the entire file set with a new version and keeps the current share mode — send every file you want live, not just the ones you changed. When editing, call quick__list_app_files to see the file map and quick__get_app_file to read each file first. Binary assets are not supported; inline small ones as data: URIs. Deployed apps can call their own per-app backends from client-side JS on the same origin — a JSON document store at /_api/db and file storage at /_api/files — so you can build dynamic, stateful apps, not just static pages.',
+        'Publish a static app from a set of UTF-8 text files and make it live immediately at its URL. The set must include an index.html at the root; other files (CSS, JS, JSON, nested paths like assets/app.js) are served alongside it. Creates the app if the slug is new (default share mode: google — any signed-in Google account can view; pass shareMode "link" for secret-link-only access). Re-deploying an existing slug REPLACES the entire file set with a new version and keeps the current share mode — send every file you want live, not just the ones you changed. When editing, call quick__list_app_files to see the file map and quick__get_app_file to read each file first. Binary assets cannot be uploaded here; for images, declare image slots (the slots argument) and reference them as /_api/slots/<key> — the owner fills them from the dashboard — or inline small graphics as data: URIs or SVG. Deployed apps can call their own per-app backends from client-side JS on the same origin — a JSON document store at /_api/db and file storage at /_api/files — so you can build dynamic, stateful apps, not just static pages.',
       inputSchema: {
         slug: z.string().min(1).max(63),
         files: z
@@ -185,15 +218,31 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
           .min(1)
           .max(DEPLOY_MAX_FILES),
         shareMode: z.enum(["google", "link"]).optional(),
+        slots: z
+          .array(
+            z.object({
+              key: z.string().min(1),
+              label: z.string().optional(),
+              accept: z.string().optional(),
+              maxBytes: z.number().int().positive().optional(),
+            }),
+          )
+          .optional(),
       },
     },
-    async ({ slug, files, shareMode }) => {
+    async ({ slug, files, shareMode, slots }) => {
       const deployFiles: DeployFile[] = files.map((f) => ({
         path: f.path,
         bytes: new TextEncoder().encode(f.content),
       }));
       const invalid = validateDeploymentFiles(deployFiles);
       if (invalid !== null) return errorResult(invalid);
+
+      const slotDefs = (slots ?? []).map(toSlotDef);
+      if (slots !== undefined) {
+        const badSlots = validateSlotDefinitions(slotDefs);
+        if (badSlots !== null) return errorResult(badSlots);
+      }
 
       const existing = await service.findBySlug(slug);
       let appId: AppId;
@@ -214,13 +263,20 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       const r = await service.createDeployment(appId, deployFiles, actor);
       if (r.kind === "err") return errorResult(r.error);
 
+      if (slots !== undefined) await slotsService.declareSlots(appId, slotDefs);
+
       await safely(
         "audit",
         audit.record({
           userId: actor,
           action: "quick__deploy_files",
           via: "mcp",
-          metadata: { slug, version: r.value.version, fileCount: r.value.fileCount },
+          metadata: {
+            slug,
+            version: r.value.version,
+            fileCount: r.value.fileCount,
+            slotCount: slotDefs.length,
+          },
         }),
       );
       const url = appUrl(slug);
@@ -310,6 +366,43 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       return {
         content: [{ type: "text" as const, text: content }],
         structuredContent: { slug, path, content },
+      };
+    },
+  );
+
+  server.registerTool(
+    "quick__list_slots",
+    {
+      title: "List image slots",
+      description:
+        "List an app's declared image slots and whether each is filled. Slots are image placeholders the app references as /_api/slots/<key>; declare them with the slots argument of quick__deploy_files, and the app owner uploads the images from the dashboard. Use this to check which slots are still empty.",
+      inputSchema: { slug: z.string().min(1) },
+    },
+    async ({ slug }) => {
+      const app = await service.findBySlug(slug);
+      if (app === null) return errorResult({ kind: "not_found" });
+      const slotList = await slotsService.listSlots(app.id);
+      await safely(
+        "audit",
+        audit.record({
+          userId: actor,
+          action: "quick__list_slots",
+          via: "mcp",
+          metadata: { slug, count: slotList.length },
+        }),
+      );
+      const text =
+        slotList.length === 0
+          ? `No image slots declared for "${slug}". Declare them with the slots argument of quick__deploy_files.`
+          : slotList
+              .map(
+                (s) =>
+                  `${s.key}${s.label === "" ? "" : ` (${s.label})`} — ${s.filled ? "filled" : "empty"}`,
+              )
+              .join("\n");
+      return {
+        content: [{ type: "text" as const, text }],
+        structuredContent: { slug, slots: slotList },
       };
     },
   );

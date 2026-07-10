@@ -10,7 +10,7 @@ import { withTestAuth } from "@quick/core/server/test";
 import { parseAppId, parseUserId } from "@quick/core/shared";
 import * as v from "valibot";
 import { DEPLOY_MAX_TOTAL_BYTES } from "../server/deploy.ts";
-import { createHostingService } from "../server/index.ts";
+import { createHostingService, createSlotsService } from "../server/index.ts";
 import { QUICK_BUILD_GUIDE, registerHostingTools } from "./index.ts";
 
 type Ctx = { auth: Auth; db: Parameters<typeof createHostingService>[0] };
@@ -18,6 +18,7 @@ type Ctx = { auth: Auth; db: Parameters<typeof createHostingService>[0] };
 const setup = async (ctx: Ctx) => {
   const appsDir = mkdtempSync(join(tmpdir(), "quick-deploy-files-"));
   const service = createHostingService(ctx.db, { appsDir });
+  const slots = createSlotsService(ctx.db);
   const audit = createAuditRecorder(ctx.db);
   const authCtx = await ctx.auth.$context;
   const user = await authCtx.internalAdapter.createUser({ name: "Owner", email: "o@example.com" });
@@ -26,6 +27,7 @@ const setup = async (ctx: Ctx) => {
   const server = new McpServer({ name: "test", version: "0.0.0" });
   registerHostingTools(server, {
     service,
+    slots,
     actor,
     audit,
     appUrl: (slug) => `https://${slug}.quick.example.com`,
@@ -34,7 +36,7 @@ const setup = async (ctx: Ctx) => {
   const client = new Client({ name: "test-client", version: "0.0.0" });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
-  return { appsDir, service, client, actor };
+  return { appsDir, service, slots, client, actor };
 };
 
 const textOf = (content: Awaited<ReturnType<Client["callTool"]>>["content"]): string => {
@@ -66,6 +68,11 @@ const FileResultSchema = v.object({
 
 const LinksResultSchema = v.object({
   links: v.array(v.object({ id: v.string(), label: v.string() })),
+});
+
+const SlotsResultSchema = v.object({
+  slug: v.string(),
+  slots: v.array(v.object({ key: v.string(), label: v.string(), filled: v.boolean() })),
 });
 
 describe("quick__deploy_files", () => {
@@ -479,6 +486,71 @@ describe("quick__set_allowed_emails", () => {
         arguments: { slug: "ghost", emails: ["a@b.com"] },
       });
       expect(res.isError ?? false).toBe(true);
+    });
+  });
+});
+
+describe("quick__deploy_files slots + quick__list_slots", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]);
+
+  test("deploying with slots declares them and list_slots reports them empty", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const dep = await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: {
+          slug: "gallery",
+          files: [file("index.html", '<img src="/_api/slots/hero">')],
+          slots: [{ key: "hero", label: "Hero" }, { key: "logo" }],
+        },
+      });
+      expect(dep.isError ?? false).toBe(false);
+
+      const res = await h.client.callTool({
+        name: "quick__list_slots",
+        arguments: { slug: "gallery" },
+      });
+      expect(res.isError ?? false).toBe(false);
+      const { slots } = v.parse(SlotsResultSchema, res.structuredContent);
+      expect(slots.map((s) => s.key)).toEqual(["hero", "logo"]);
+      expect(slots.every((s) => s.filled === false)).toBe(true);
+      expect(allTextOf(res.content)).toContain("hero");
+    });
+  });
+
+  test("list_slots reflects a filled slot", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: { slug: "gallery", files: [file("index.html", "x")], slots: [{ key: "hero" }] },
+      });
+      const app = await h.service.findBySlug("gallery");
+      if (app === null) throw new Error("app not created");
+      expect((await h.slots.fillSlot(app.id, "hero", PNG, h.actor)).kind).toBe("ok");
+
+      const res = await h.client.callTool({
+        name: "quick__list_slots",
+        arguments: { slug: "gallery" },
+      });
+      const { slots } = v.parse(SlotsResultSchema, res.structuredContent);
+      expect(slots.find((s) => s.key === "hero")?.filled).toBe(true);
+    });
+  });
+
+  test("an invalid slot key is rejected without creating the app", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const res = await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: {
+          slug: "badslots",
+          files: [file("index.html", "x")],
+          slots: [{ key: "Bad Key" }],
+        },
+      });
+      expect(res.isError ?? false).toBe(true);
+      expect(await h.service.findBySlug("badslots")).toBeNull();
     });
   });
 });

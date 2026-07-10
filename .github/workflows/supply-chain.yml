@@ -33,6 +33,12 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      # One advisory is ignored via pnpm.auditConfig.ignoreGhsas in package.json:
+      # GHSA-p2fr-6hmx-4528 (@better-auth/oauth-provider, CVSS 3.1) — cross-audience
+      # access-token escalation that requires >1 configured audience. Quick configures a
+      # single MCP resource (validAudiences: [mcpResource]), so it is not exploitable here.
+      # Its only fix ships in the 1.7.0 prerelease line; remove the ignore when we adopt 1.7.
+      # See .claude/rules/security.md § "Deferred advisories" and issue #13.
       - name: Audit known vulnerabilities (fail on moderate+)
         run: pnpm audit --audit-level=moderate
 
@@ -43,6 +49,12 @@ jobs:
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure
+          # Deferred: GHSA-p2fr-6hmx-4528 (@better-auth/oauth-provider, CVSS 3.1) — cross-audience
+          #   token escalation that needs >1 configured audience. Quick uses a single MCP resource
+          #   (validAudiences: [mcpResource]), so it is not exploitable here; no stable fix exists
+          #   (patched only in the 1.7.0 prerelease line). This mirrors pnpm.auditConfig.ignoreGhsas
+          #   in package.json — remove BOTH when we adopt 1.7. See security.md and issue #13.
+          allow-ghsas: GHSA-p2fr-6hmx-4528
           # MPL-2.0: lightningcss (Tailwind v4 CSS pipeline, stack-locked). Use unmodified at build time;
           #   MPL §3.3 explicitly allows combining unmodified MPL files into a Larger Work under any license.
           # CC-BY-4.0: caniuse-lite (browser-support dataset pulled by Babel→browserslist). Build-time data only,

@@ -1,4 +1,4 @@
-import type { HostingService } from "@quick/app-hosting/server";
+import type { HostingService, SlotsService } from "@quick/app-hosting/server";
 import { QUICK_BUILD_GUIDE, registerHostingTools } from "@quick/app-hosting/tools";
 import {
   type AuditRecorder,
@@ -18,6 +18,7 @@ export type McpDeps = {
   jwksOrigin: string;
   allowedHosts: readonly string[];
   hosting: HostingService;
+  slots: SlotsService;
   audit: AuditRecorder;
   isOwner: (actor: UserId) => Promise<boolean>;
   appUrl: (slug: string) => string;
@@ -35,6 +36,7 @@ export const mountMcp = (deps: McpDeps) => {
         if (owner) {
           registerHostingTools(server, {
             service: deps.hosting,
+            slots: deps.slots,
             actor,
             audit: deps.audit,
             appUrl: deps.appUrl,
