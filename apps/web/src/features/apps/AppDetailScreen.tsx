@@ -10,6 +10,7 @@ import { AccessLogTab } from "@/features/apps/detail/AccessLogTab";
 import { DataTab } from "@/features/apps/detail/DataTab";
 import { DeploymentsTab } from "@/features/apps/detail/DeploymentsTab";
 import { FilesTab } from "@/features/apps/detail/FilesTab";
+import { ImagesTab } from "@/features/apps/detail/ImagesTab";
 import { SettingsTab } from "@/features/apps/detail/SettingsTab";
 import { SharingTab } from "@/features/apps/detail/SharingTab";
 import { appBaseUrl } from "@/lib/app-url";
@@ -21,6 +22,7 @@ const TABS = [
   { value: "sharing", label: "Sharing" },
   { value: "data", label: "Data" },
   { value: "files", label: "Files" },
+  { value: "images", label: "Images" },
   { value: "access", label: "Access log" },
   { value: "settings", label: "Settings" },
 ] as const;
@@ -108,6 +110,9 @@ export const AppDetailScreen = ({ appId }: { appId: string }): React.ReactElemen
         </TabsContent>
         <TabsContent value="files">
           <FilesTab app={current} />
+        </TabsContent>
+        <TabsContent value="images">
+          <ImagesTab app={current} />
         </TabsContent>
         <TabsContent value="access">
           <AccessLogTab app={current} />

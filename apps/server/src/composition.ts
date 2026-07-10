@@ -7,9 +7,12 @@ import {
   type HostingService,
   type OwnerVariables,
   SECURITY_HEADERS,
+  type SlotsService,
   createHostingRoutes,
   createOwnerAuth,
   createServeAppStatic,
+  createSlotsAdminRoutes,
+  createSlotsAppRoutes,
   createSsoCallback,
   createSsoGrant,
 } from "@quick/app-hosting/server";
@@ -52,6 +55,7 @@ export type ComposeOptions = {
   allowedEmails: ReadonlySet<string>;
   audit: AuditRecorder;
   hosting: HostingService;
+  slots: SlotsService;
   store: StoreService;
   files: FilesService;
   isOwner: (actor: UserId) => Promise<boolean>;
@@ -86,6 +90,7 @@ export const createApp = (o: ComposeOptions) => {
         jwksOrigin: o.jwksOrigin,
         allowedHosts: o.allowedHosts,
         hosting: o.hosting,
+        slots: o.slots,
         audit: o.audit,
         isOwner: o.isOwner,
         appUrl: o.appUrl,
@@ -98,6 +103,7 @@ export const createApp = (o: ComposeOptions) => {
     .get("/api/me", (c) => c.json({ user: c.var.user }))
     .route("/api/apps/:appId/records", createStoreAdminRoutes({ service: o.store }))
     .route("/api/apps/:appId/files", createFilesAdminRoutes({ service: o.files }))
+    .route("/api/apps/:appId/slots", createSlotsAdminRoutes({ service: o.slots }))
     .route("/api/apps", createHostingRoutes({ service: o.hosting }))
     .route(
       "/",
@@ -130,6 +136,7 @@ export const createApp = (o: ComposeOptions) => {
     .use("/_api/*", createOriginCheck())
     .route("/_api/db", createStoreAppRoutes({ service: o.store }))
     .route("/_api/files", createFilesAppRoutes({ service: o.files }))
+    .route("/_api/slots", createSlotsAppRoutes({ service: o.slots }))
     .get("/_api/me", (c) => c.json({ viewer: c.var.viewer }))
     .get("*", createServeAppStatic({ appsDir: o.appsDir }))
     .onError(handleTenantError);

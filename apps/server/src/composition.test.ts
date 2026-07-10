@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createFilesService } from "@quick/app-files/server";
-import { createHostingService } from "@quick/app-hosting/server";
+import { createHostingService, createSlotsService } from "@quick/app-hosting/server";
 import { createStoreService } from "@quick/app-store/server";
 import {
   type Auth,
@@ -42,6 +42,7 @@ const build = async (auth: Auth, db: Db, signSessionCookie: (t: string) => Promi
     allowedEmails,
     audit: createAuditRecorder(db),
     hosting,
+    slots: createSlotsService(db),
     store: createStoreService(db),
     files: createFilesService(db),
     isOwner,

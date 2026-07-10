@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "@quick/core/server/drizzle";
+import { blob, index, integer, sqliteTable, text, uniqueIndex } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
 
 // `current_deployment_id` is a plain pointer (no FK) to avoid a circular FK with
@@ -153,6 +153,42 @@ export const appSessionCodes = sqliteTable(
   (t) => [index("app_session_codes_app_idx").on(t.appId)],
 );
 
+// Declared image placeholders for an app. Definitions ride with a deploy
+// (`quick__deploy_files` slots); the bytes are uploaded later by an owner from the
+// dashboard and live at app scope, so they survive redeploys. Content columns are
+// null until filled; `active=false` marks a slot a later deploy stopped declaring
+// (its bytes are kept in case it returns). Bytes ride inline as a BLOB so Litestream
+// covers them, matching app_files; `storage` is the additive S3 upgrade path.
+export const appSlots = sqliteTable(
+  "app_slots",
+  {
+    id: text("id").primaryKey(),
+    appId: text("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    label: text("label").notNull().default(""),
+    acceptMime: text("accept_mime"),
+    maxBytes: integer("max_bytes"),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    storage: text("storage").notNull().default("inline"),
+    contentType: text("content_type"),
+    sizeBytes: integer("size_bytes"),
+    checksum: text("checksum"),
+    blob: blob("blob", { mode: "buffer" }),
+    filledByUserId: text("filled_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    filledAt: integer("filled_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("app_slots_app_key_idx").on(t.appId, t.key),
+    index("app_slots_app_idx").on(t.appId),
+  ],
+);
+
 export type AppRow = typeof apps.$inferSelect;
 export type AppAllowedEmailRow = typeof appAllowedEmails.$inferSelect;
 export type DeploymentRow = typeof deployments.$inferSelect;
@@ -160,3 +196,5 @@ export type ShareLinkRow = typeof shareLinks.$inferSelect;
 export type AccessLogRow = typeof accessLog.$inferSelect;
 export type AppSessionRow = typeof appSessions.$inferSelect;
 export type AppSessionCodeRow = typeof appSessionCodes.$inferSelect;
+export type AppSlotRow = typeof appSlots.$inferSelect;
+export type AppSlotInsert = typeof appSlots.$inferInsert;
