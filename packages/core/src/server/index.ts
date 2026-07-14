@@ -27,6 +27,7 @@ export {
   type Registrar,
   runMcpRequest,
 } from "./mcp/index.ts";
+export { clientIpFromXff } from "./net.ts";
 export { createOriginCheck } from "./middleware/origin-check.ts";
 export { createRequireOwner } from "./middleware/owner.ts";
 export { createRequestLogger, redactLogLine } from "./middleware/request-logger.ts";

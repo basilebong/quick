@@ -2,6 +2,7 @@ import {
   APP_SESSION_COOKIE,
   type SessionReader,
   type TenantVariables,
+  clientIpFromXff,
   googleAccessDeniedPage,
 } from "@quick/core/server";
 import { isUsableSlug, parseSubdomain, parseUserId } from "@quick/core/shared";
@@ -83,7 +84,7 @@ export const createSsoGrant = (deps: SsoGrantDeps) =>
         },
         event: "denied",
         path: next,
-        ip: (c.req.header("x-forwarded-for")?.split(",")[0] ?? "").trim() || null,
+        ip: clientIpFromXff(c.req.header("x-forwarded-for")),
         userAgent: c.req.header("user-agent") ?? null,
       });
       return c.html(googleAccessDeniedPage(session.user.email), 403);

@@ -33,7 +33,13 @@ export const createServeAppStatic = (opts: { appsDir: string }) => {
     }
 
     const versionDir = resolve(opts.appsDir, app.slug, app.currentDeploymentId);
-    const pathname = decodeURIComponent(new URL(c.req.url).pathname);
+    const rawPathname = new URL(c.req.url).pathname;
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(rawPathname);
+    } catch {
+      return c.text("Bad Request", 400, headersWith());
+    }
     const rel = pathname === "/" || pathname === "" ? "index.html" : pathname.replace(/^\/+/, "");
     const target = resolve(versionDir, rel);
     const within = relative(versionDir, target);

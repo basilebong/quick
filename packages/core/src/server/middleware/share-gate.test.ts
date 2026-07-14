@@ -208,4 +208,18 @@ describe("share gate", () => {
     );
     expect(res.status).toBe(403);
   });
+
+  test("the logged IP is the proxy-appended last X-Forwarded-For entry, not the spoofable first", async () => {
+    let loggedIp: string | null = "unset";
+    const r = resolver({
+      recordAccess: async (entry) => {
+        loggedIp = entry.ip;
+      },
+    });
+    await build({ kind: "app", app: appCtx("link") }, r).request(
+      "https://acme.quick.example.com/",
+      { headers: { "sec-fetch-dest": "document", "x-forwarded-for": "1.1.1.1, 2.2.2.2, 3.3.3.3" } },
+    );
+    expect(loggedIp).toBe("3.3.3.3");
+  });
 });

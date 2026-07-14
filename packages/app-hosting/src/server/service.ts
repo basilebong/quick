@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { AccessEntry, AppContext, Db, LinkValidation } from "@quick/core/server";
-import { and, desc, eq } from "@quick/core/server/drizzle";
+import { and, desc, eq, isNull } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
 import {
   type AppId,
@@ -266,6 +266,19 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
               .run();
           }
         });
+      }
+      // A mode switch must invalidate the credentials of the mode we left, so a
+      // later switch back can't silently re-arm links/sessions minted long ago.
+      if (patch.shareMode !== undefined && patch.shareMode !== current.shareMode) {
+        if (patch.shareMode === "google") {
+          await db
+            .update(shareLinks)
+            .set({ revokedAt: new Date() })
+            .where(and(eq(shareLinks.appId, appId), isNull(shareLinks.revokedAt)));
+        } else {
+          await db.delete(appSessions).where(eq(appSessions.appId, appId));
+          await db.delete(appSessionCodes).where(eq(appSessionCodes.appId, appId));
+        }
       }
       return ok(rowToAppSummary(row, await allowedEmailsFor(appId)));
     },

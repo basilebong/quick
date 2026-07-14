@@ -67,6 +67,8 @@ File storage — /_api/files:
 - GET    /_api/files/<path>           -> the file bytes
 - DELETE /_api/files/<path>           -> { path }       delete
 
+Limits (per app): each db record is capped at 64 KiB and a list returns the 1000 most recent records; an app holds up to 10000 records total and 100 MiB of files. Over a cap, writes get 507 and reads truncate — page or prune rather than storing unbounded data.
+
 Prefer these building blocks over external services so apps stay self-contained. Build dynamic, stateful apps — not just static pages.`;
 
 // All hosting tools are OWNER-only; mcp.ts only registers them when the MCP

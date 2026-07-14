@@ -33,4 +33,12 @@ describe("served app error responses carry the isolation headers", () => {
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(res.headers.get("content-security-policy") ?? "").toContain("frame-ancestors 'none'");
   });
+
+  test("a malformed percent-escape is a 400, not an unhandled 500, and keeps the headers", async () => {
+    const app = build(mkdtempSync(join(tmpdir(), "quick-st-")));
+    const res = await app.request("https://acme.quick.example.com/%");
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("content-security-policy") ?? "").toContain("frame-ancestors 'none'");
+  });
 });

@@ -43,3 +43,34 @@ describe("store service tenant scoping + validation", () => {
     expect(remove.kind === "err" && remove.error.kind).toBe("invalid_input");
   });
 });
+
+describe("store quotas and byte limits", () => {
+  test("record size is measured in UTF-8 bytes, not UTF-16 code units", async () => {
+    // 30k CJK chars: 30k UTF-16 code units (< 64Ki, so the old length check passed)
+    // but 90k UTF-8 bytes (> the 64Ki ceiling), so it must be rejected.
+    const data = { v: "中".repeat(30_000) };
+    const json = JSON.stringify(data);
+    expect(json.length).toBeLessThan(64 * 1024);
+    expect(Buffer.byteLength(json, "utf8")).toBeGreaterThan(64 * 1024);
+
+    const r = await store.create(APP_A, "notes", data);
+    expect(r.kind === "err" && r.error.kind).toBe("too_large");
+  });
+
+  test("per-app record count is capped (counting across all collections)", async () => {
+    const capped = createStoreService(db, { maxRecordsPerApp: 2 });
+    expect((await capped.create(APP_A, "a", { v: 1 })).kind).toBe("ok");
+    expect((await capped.create(APP_A, "b", { v: 2 })).kind).toBe("ok");
+    const third = await capped.create(APP_A, "a", { v: 3 });
+    expect(third.kind === "err" && third.error.kind).toBe("quota_exceeded");
+    // The cap is per-app: a different app is unaffected.
+    expect((await capped.create(APP_B, "a", { v: 1 })).kind).toBe("ok");
+  });
+
+  test("list returns at most listLimit records (most recent first)", async () => {
+    const capped = createStoreService(db, { listLimit: 2 });
+    for (let i = 0; i < 3; i++) await capped.create(APP_A, "notes", { i });
+    const listed = await capped.list(APP_A, "notes");
+    expect(listed.kind === "ok" && listed.value.length).toBe(2);
+  });
+});
