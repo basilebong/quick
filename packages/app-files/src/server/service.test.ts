@@ -40,4 +40,18 @@ describe("files per-app byte quota", () => {
     const over = await files.put(APP_A, "a.bin", "application/octet-stream", bytes(11), null);
     expect(over.kind === "err" && over.error.kind).toBe("quota_exceeded");
   });
+
+  // A quota read followed by an awaited write is a check-then-act across a yield point:
+  // concurrent writers all pass the check before any of them commits, and the app lands
+  // over its cap. The whole point of the cap is that a leaked share link cannot do this.
+  test("50 concurrent puts cannot overshoot the byte cap", async () => {
+    const files = createFilesService(db, { maxTotalBytesPerApp: 100 });
+    await Promise.all(
+      Array.from({ length: 50 }, (_, i) =>
+        files.put(APP_A, `f${i}.bin`, "application/octet-stream", bytes(20), null),
+      ),
+    );
+    const stored = await files.list(APP_A);
+    expect(stored.reduce((n, f) => n + f.sizeBytes, 0)).toBeLessThanOrEqual(100);
+  });
 });

@@ -1,8 +1,8 @@
 import type { TenantVariables, ViewerVariables } from "@quick/core/server";
-import { type AppId, type Result, err, ok, parseAppId, parseAppRecordId } from "@quick/core/shared";
+import { type AppId, type Result, parseAppId, parseAppRecordId } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
 import { type AppRecord, type StoreError, storeErrorStatus } from "../shared/index.ts";
-import type { ListOptions, StoreService } from "./service.ts";
+import type { StoreService } from "./service.ts";
 
 type TenantCtx = { Variables: TenantVariables & ViewerVariables };
 
@@ -25,29 +25,14 @@ const respond = (c: Context, r: Result<AppRecord, StoreError>, okStatus: 200 | 2
     ? c.json({ record: r.value }, okStatus)
     : c.json(r.error, storeErrorStatus(r.error));
 
-const listOptions = (c: Context): Result<ListOptions, StoreError> => {
-  const opts: ListOptions = {};
-  const rawLimit = c.req.query("limit");
-  if (rawLimit !== undefined) {
-    const limit = Number(rawLimit);
-    if (!Number.isInteger(limit) || limit < 1) {
-      return err({ kind: "invalid_input", message: "limit must be a positive integer" });
-    }
-    opts.limit = limit;
-  }
-  const before = c.req.query("before");
-  if (before !== undefined) opts.before = parseAppRecordId(before);
-  return ok(opts);
-};
-
 // Mounted at /_api/db on each tenant host, behind the share gate + origin check.
 export const createStoreAppRoutes = (deps: { service: StoreService }) =>
   new Hono<TenantCtx>()
     .get("/:collection", async (c) => {
-      const opts = listOptions(c);
-      if (opts.kind === "err") return c.json(opts.error, storeErrorStatus(opts.error));
-      const r = await deps.service.list(appIdOf(c), c.req.param("collection"), opts.value);
-      return r.kind === "ok" ? c.json(r.value) : c.json(r.error, storeErrorStatus(r.error));
+      const r = await deps.service.list(appIdOf(c), c.req.param("collection"));
+      return r.kind === "ok"
+        ? c.json({ records: r.value })
+        : c.json(r.error, storeErrorStatus(r.error));
     })
     .post("/:collection", async (c) => {
       const body = await readJson(c);

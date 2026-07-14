@@ -1,13 +1,40 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Db } from "@quick/core/server";
+import { eq } from "@quick/core/server/drizzle";
 import { createTestDb } from "@quick/core/server/test";
 import { type AppId, type AppRecordId, parseAppId } from "@quick/core/shared";
+import { appRecords } from "./schema.ts";
 import { type StoreService, createStoreService } from "./service.ts";
 
 let db: Db;
 let store: StoreService;
 const APP_A: AppId = parseAppId("app_a");
 const APP_B: AppId = parseAppId("app_b");
+
+const storedSize = async (id: AppRecordId): Promise<number | undefined> => {
+  const rows = await db
+    .select({ sizeBytes: appRecords.sizeBytes, dataJson: appRecords.dataJson })
+    .from(appRecords)
+    .where(eq(appRecords.id, id));
+  return rows[0]?.sizeBytes;
+};
+
+const storedJsonBytes = async (id: AppRecordId): Promise<number | undefined> => {
+  const rows = await db
+    .select({ dataJson: appRecords.dataJson })
+    .from(appRecords)
+    .where(eq(appRecords.id, id));
+  const row = rows[0];
+  return row === undefined ? undefined : Buffer.byteLength(row.dataJson, "utf8");
+};
+
+const storedRows = async (appId: AppId): Promise<{ count: number; bytes: number }> => {
+  const rows = await db
+    .select({ sizeBytes: appRecords.sizeBytes })
+    .from(appRecords)
+    .where(eq(appRecords.appId, appId));
+  return { count: rows.length, bytes: rows.reduce((n, r) => n + r.sizeBytes, 0) };
+};
 
 beforeEach(() => {
   db = createTestDb();
@@ -41,6 +68,30 @@ describe("store service tenant scoping + validation", () => {
     expect(merge.kind === "err" && merge.error.kind).toBe("invalid_input");
     const remove = await store.remove(APP_A, bad, id);
     expect(remove.kind === "err" && remove.error.kind).toBe("invalid_input");
+  });
+});
+
+// Quota accounting sums the persisted `size_bytes`, so that column drifting from the
+// JSON it describes would silently mis-bound an app's footprint.
+describe("stored size_bytes tracks the record's UTF-8 byte length", () => {
+  test("create stores the byte length of multibyte data, not its code-unit count", async () => {
+    const created = await store.create(APP_A, "notes", { v: "中".repeat(100) });
+    if (created.kind !== "ok") throw new Error("create failed");
+    const size = await storedSize(created.value.id);
+    expect(size).toBe(await storedJsonBytes(created.value.id));
+    expect(size).toBeGreaterThan(300);
+  });
+
+  test("replace and merge keep size_bytes in step with the new body", async () => {
+    const created = await store.create(APP_A, "notes", { v: "x" });
+    if (created.kind !== "ok") throw new Error("create failed");
+    const id = created.value.id;
+
+    expect((await store.replace(APP_A, "notes", id, { v: "中".repeat(50) })).kind).toBe("ok");
+    expect(await storedSize(id)).toBe(await storedJsonBytes(id));
+
+    expect((await store.merge(APP_A, "notes", id, { w: "中".repeat(20) })).kind).toBe("ok");
+    expect(await storedSize(id)).toBe(await storedJsonBytes(id));
   });
 });
 
@@ -92,44 +143,34 @@ describe("store quotas and byte limits", () => {
   });
 });
 
-describe("store list paging", () => {
-  test("defaults to listLimit records, newest first, and flags that more remain", async () => {
-    const capped = createStoreService(db, { listLimit: 2 });
-    for (let i = 0; i < 3; i++) await capped.create(APP_A, "notes", { i });
+// A quota read followed by an awaited write is a check-then-act across a yield point:
+// concurrent writers all pass the check before any of them commits, and the app lands
+// over its cap. The whole point of the cap is that a leaked share link cannot do this.
+describe("quotas hold under concurrent writes", () => {
+  const CAP = 10_000;
+  const filler = (n: number) => ({ v: "x".repeat(n) });
 
-    const page = await capped.list(APP_A, "notes");
-    if (page.kind !== "ok") throw new Error("list failed");
-    expect(page.value.records.length).toBe(2);
-    expect(page.value.truncated).toBe(true);
-    expect(page.value.records.map((r) => r.data)).toEqual([{ i: 2 }, { i: 1 }]);
+  test("50 concurrent creates cannot overshoot the byte cap", async () => {
+    const capped = createStoreService(db, { maxTotalBytesPerApp: CAP });
+    await Promise.all(Array.from({ length: 50 }, () => capped.create(APP_A, "notes", filler(900))));
+    expect((await storedRows(APP_A)).bytes).toBeLessThanOrEqual(CAP);
   });
 
-  test("`before` walks the whole collection, one page at a time, with no gaps or repeats", async () => {
-    const capped = createStoreService(db, { listLimit: 2 });
-    for (let i = 0; i < 5; i++) await capped.create(APP_A, "notes", { i });
+  test("50 concurrent creates cannot overshoot the record cap", async () => {
+    const capped = createStoreService(db, { maxRecordsPerApp: 5 });
+    await Promise.all(Array.from({ length: 50 }, (_, i) => capped.create(APP_A, "notes", { i })));
+    expect((await storedRows(APP_A)).count).toBe(5);
+  });
 
-    const seen: unknown[] = [];
-    let before: AppRecordId | undefined;
-    for (let guard = 0; guard < 10; guard++) {
-      const opts = before === undefined ? {} : { before };
-      const page = await capped.list(APP_A, "notes", opts);
-      if (page.kind !== "ok") throw new Error("list failed");
-      seen.push(...page.value.records.map((r) => r.data));
-      if (!page.value.truncated) break;
-      before = page.value.records[page.value.records.length - 1]?.id;
+  test("concurrent replaces of different records cannot overshoot the byte cap", async () => {
+    const capped = createStoreService(db, { maxTotalBytesPerApp: CAP });
+    const ids: AppRecordId[] = [];
+    for (let i = 0; i < 10; i++) {
+      const created = await capped.create(APP_A, "notes", filler(1));
+      if (created.kind !== "ok") throw new Error("create failed");
+      ids.push(created.value.id);
     }
-    expect(seen).toEqual([{ i: 4 }, { i: 3 }, { i: 2 }, { i: 1 }, { i: 0 }]);
-  });
-
-  test("an explicit limit is honoured but clamped to listLimit", async () => {
-    const capped = createStoreService(db, { listLimit: 2 });
-    for (let i = 0; i < 3; i++) await capped.create(APP_A, "notes", { i });
-
-    const one = await capped.list(APP_A, "notes", { limit: 1 });
-    expect(one.kind === "ok" && one.value.records.length).toBe(1);
-    expect(one.kind === "ok" && one.value.truncated).toBe(true);
-
-    const asked = await capped.list(APP_A, "notes", { limit: 50 });
-    expect(asked.kind === "ok" && asked.value.records.length).toBe(2);
+    await Promise.all(ids.map((id) => capped.replace(APP_A, "notes", id, filler(2_000))));
+    expect((await storedRows(APP_A)).bytes).toBeLessThanOrEqual(CAP);
   });
 });

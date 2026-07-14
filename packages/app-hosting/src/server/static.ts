@@ -13,6 +13,19 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "referrer-policy": "no-referrer",
 };
 
+// `null` for any request path we refuse to turn into a filesystem lookup: a malformed
+// percent-escape (decodeURIComponent throws) or an embedded NUL (it decodes fine, but
+// Bun.file rejects a path containing one — an unhandled throw rather than a 404).
+const decodeRequestPath = (raw: string): string | null => {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+  return decoded.includes("\0") ? null : decoded;
+};
+
 const notDeployedPage = (slug: string): string =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not deployed</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:18vh auto;padding:0 1.25rem;color:#1a1a1a}h1{font-size:1.4rem}code{background:#f2f2f2;padding:.1rem .35rem;border-radius:.25rem}</style></head><body><h1>Nothing deployed yet</h1><p>The app <code>${escapeHtml(slug)}</code> has no deployment yet.</p></body></html>`;
 
@@ -33,13 +46,8 @@ export const createServeAppStatic = (opts: { appsDir: string }) => {
     }
 
     const versionDir = resolve(opts.appsDir, app.slug, app.currentDeploymentId);
-    const rawPathname = new URL(c.req.url).pathname;
-    let pathname: string;
-    try {
-      pathname = decodeURIComponent(rawPathname);
-    } catch {
-      return c.text("Bad Request", 400, headersWith());
-    }
+    const pathname = decodeRequestPath(new URL(c.req.url).pathname);
+    if (pathname === null) return c.text("Bad Request", 400, headersWith());
     const rel = pathname === "/" || pathname === "" ? "index.html" : pathname.replace(/^\/+/, "");
     const target = resolve(versionDir, rel);
     const within = relative(versionDir, target);

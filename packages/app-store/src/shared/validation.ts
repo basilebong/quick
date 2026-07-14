@@ -13,8 +13,4 @@ export const MAX_RECORD_BYTES = 64 * 1024;
 export const MAX_RECORDS_PER_APP = 10_000;
 export const MAX_STORE_TOTAL_BYTES_PER_APP = 32 * 1024 * 1024;
 
-// The default page size of `list`, and the ceiling on an explicit `limit`, so a
-// large collection can't force every open client tab to pull the whole table.
-export const LIST_LIMIT = 1_000;
-
 export const isValidCollection = (collection: string): boolean => COLLECTION_REGEX.test(collection);

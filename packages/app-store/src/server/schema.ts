@@ -10,12 +10,18 @@ export const appRecords = sqliteTable(
     appId: text("app_id").notNull(),
     collection: text("collection").notNull(),
     dataJson: text("data_json").notNull(),
+    // The UTF-8 byte length of `data_json`, denormalized so the per-app byte quota is
+    // a sum over an index instead of a re-measure of every record body on every write.
+    sizeBytes: integer("size_bytes").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (t) => [index("app_records_app_collection_idx").on(t.appId, t.collection, t.createdAt)],
+  (t) => [
+    index("app_records_app_collection_idx").on(t.appId, t.collection, t.createdAt),
+    index("app_records_app_size_idx").on(t.appId, t.sizeBytes),
+  ],
 );
 
 export type AppRecordRow = typeof appRecords.$inferSelect;

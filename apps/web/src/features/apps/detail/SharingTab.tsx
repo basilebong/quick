@@ -122,6 +122,10 @@ export const SharingTab = ({ app }: { app: AppSummary }): React.ReactElement => 
   });
 
   const liveLinks = (links.data ?? []).filter((l) => l.active).length;
+  // Until the links have actually loaded, `liveLinks` reads 0 whether the app has none
+  // or we simply don't know yet — and a confirmation that silently no-ops on the second
+  // case is not a guardrail. Nothing may be switched until the count is truthful.
+  const liveLinksKnown = app.shareMode !== "link" || links.isSuccess;
 
   const chooseMode = (value: string): void => {
     const mode: ShareMode = value === "link" ? "link" : "google";
@@ -140,7 +144,11 @@ export const SharingTab = ({ app }: { app: AppSummary }): React.ReactElement => 
           <CardDescription>How viewers reach this app.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Select value={app.shareMode} disabled={setMode.isPending} onValueChange={chooseMode}>
+          <Select
+            value={app.shareMode}
+            disabled={setMode.isPending || !liveLinksKnown}
+            onValueChange={chooseMode}
+          >
             <SelectTrigger aria-label="Share mode">
               <SelectValue />
             </SelectTrigger>

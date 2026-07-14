@@ -55,63 +55,74 @@ export const createFilesService = (db: Db, limits: FilesLimits = {}): FilesServi
       const buf = Buffer.from(bytes);
       const checksum = checksumOf(bytes);
       const ct = contentType.trim() === "" ? "application/octet-stream" : contentType;
+      const atPath = and(eq(appFiles.appId, appId), eq(appFiles.path, path));
 
-      const existing = await db
-        .select({ id: appFiles.id, sizeBytes: appFiles.sizeBytes })
-        .from(appFiles)
-        .where(and(eq(appFiles.appId, appId), eq(appFiles.path, path)))
-        .limit(1);
+      // Reading the quota and writing the blob must be ONE atomic step. Split across an
+      // `await`, concurrent writers each pass the check before any of them commits and
+      // the app overshoots its cap by the number of writers in flight. bun:sqlite
+      // transactions are synchronous, so nothing can interleave inside this callback.
+      return db.transaction((tx) => {
+        const existing = tx
+          .select({ id: appFiles.id, sizeBytes: appFiles.sizeBytes })
+          .from(appFiles)
+          .where(atPath)
+          .limit(1)
+          .all();
 
-      const usedRows = await db
-        .select({ total: sum(appFiles.sizeBytes) })
-        .from(appFiles)
-        .where(eq(appFiles.appId, appId));
-      const used = Number(usedRows[0]?.total ?? 0);
-      const projected = used - (existing[0]?.sizeBytes ?? 0) + bytes.byteLength;
-      if (projected > maxTotalBytesPerApp) {
-        return err({
-          kind: "quota_exceeded",
-          message: `app has reached its ${maxTotalBytesPerApp}-byte storage limit`,
-        });
-      }
+        const usedRows = tx
+          .select({ total: sum(appFiles.sizeBytes) })
+          .from(appFiles)
+          .where(eq(appFiles.appId, appId))
+          .all();
+        const used = Number(usedRows[0]?.total ?? 0);
+        const projected = used - (existing[0]?.sizeBytes ?? 0) + bytes.byteLength;
+        if (projected > maxTotalBytesPerApp) {
+          return err({
+            kind: "quota_exceeded",
+            message: `app has reached its ${maxTotalBytesPerApp}-byte storage limit`,
+          });
+        }
 
-      if (existing[0] !== undefined) {
-        const updated = await db
-          .update(appFiles)
-          .set({
+        if (existing[0] !== undefined) {
+          const updated = tx
+            .update(appFiles)
+            .set({
+              contentType: ct,
+              sizeBytes: bytes.byteLength,
+              storage: "inline",
+              blob: buf,
+              checksum,
+              updatedAt: now,
+            })
+            .where(atPath)
+            .returning()
+            .all();
+          const row = updated[0];
+          if (row === undefined) return err({ kind: "not_found" });
+          return ok(rowToMeta(row));
+        }
+
+        const inserted = tx
+          .insert(appFiles)
+          .values({
+            id: parseAppFileId(ulid()),
+            appId,
+            path,
             contentType: ct,
             sizeBytes: bytes.byteLength,
             storage: "inline",
             blob: buf,
             checksum,
+            createdByUserId: by,
+            createdAt: now,
             updatedAt: now,
           })
-          .where(and(eq(appFiles.appId, appId), eq(appFiles.path, path)))
-          .returning();
-        const row = updated[0];
+          .returning()
+          .all();
+        const row = inserted[0];
         if (row === undefined) return err({ kind: "not_found" });
         return ok(rowToMeta(row));
-      }
-
-      const inserted = await db
-        .insert(appFiles)
-        .values({
-          id: parseAppFileId(ulid()),
-          appId,
-          path,
-          contentType: ct,
-          sizeBytes: bytes.byteLength,
-          storage: "inline",
-          blob: buf,
-          checksum,
-          createdByUserId: by,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .returning();
-      const row = inserted[0];
-      if (row === undefined) return err({ kind: "not_found" });
-      return ok(rowToMeta(row));
+      });
     },
 
     async get(appId, path) {

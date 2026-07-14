@@ -23,6 +23,9 @@ export const appFiles = sqliteTable(
   (t) => [
     uniqueIndex("app_files_app_path_idx").on(t.appId, t.path),
     index("app_files_app_created_idx").on(t.appId, t.createdAt),
+    // Lets the per-app byte quota sum `size_bytes` straight out of an index, without
+    // touching the rows (each of which carries an inline blob).
+    index("app_files_app_size_idx").on(t.appId, t.sizeBytes),
   ],
 );
 
