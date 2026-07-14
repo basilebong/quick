@@ -1,17 +1,18 @@
 import { createHash } from "node:crypto";
 import type { Db } from "@quick/core/server";
-import { and, asc, eq, like, sum } from "@quick/core/server/drizzle";
+import { and, asc, count, eq, like, sum } from "@quick/core/server/drizzle";
 import { type AppId, type Result, type UserId, err, ok, parseAppFileId } from "@quick/core/shared";
 import { ulid } from "ulid";
 import {
   type AppFileMeta,
   type FilesError,
+  MAX_FILES_PER_APP,
   MAX_FILES_TOTAL_BYTES_PER_APP,
   MAX_FILE_BYTES,
   isValidFilePath,
 } from "../shared/index.ts";
 import { appFiles } from "./schema.ts";
-import { rowToMeta } from "./serialize.ts";
+import { metaColumns, rowToMeta } from "./serialize.ts";
 
 export type AppFileContent = { meta: AppFileMeta; bytes: Uint8Array };
 
@@ -31,17 +32,32 @@ export type FilesService = {
 const checksumOf = (bytes: Uint8Array): string =>
   createHash("sha256").update(bytes).digest("base64url");
 
-export type FilesLimits = { maxTotalBytesPerApp?: number };
+export type FilesLimits = { maxFilesPerApp?: number; maxTotalBytesPerApp?: number };
 
 export const createFilesService = (db: Db, limits: FilesLimits = {}): FilesService => {
+  const maxFilesPerApp = limits.maxFilesPerApp ?? MAX_FILES_PER_APP;
   const maxTotalBytesPerApp = limits.maxTotalBytesPerApp ?? MAX_FILES_TOTAL_BYTES_PER_APP;
+
+  const overFileCap: FilesError = {
+    kind: "quota_exceeded",
+    message: `app has reached its ${maxFilesPerApp}-file limit`,
+  };
+  const overByteCap: FilesError = {
+    kind: "quota_exceeded",
+    message: `app has reached its ${maxTotalBytesPerApp}-byte storage limit`,
+  };
+
   return {
     async list(appId, prefix) {
       const where =
         prefix !== undefined && prefix !== ""
           ? and(eq(appFiles.appId, appId), like(appFiles.path, `${prefix}%`))
           : eq(appFiles.appId, appId);
-      const rows = await db.select().from(appFiles).where(where).orderBy(asc(appFiles.path));
+      const rows = await db
+        .select(metaColumns)
+        .from(appFiles)
+        .where(where)
+        .orderBy(asc(appFiles.path));
       return rows.map(rowToMeta);
     },
 
@@ -68,6 +84,17 @@ export const createFilesService = (db: Db, limits: FilesLimits = {}): FilesServi
           .where(atPath)
           .limit(1)
           .all();
+        const before = existing[0];
+
+        // Only a new path consumes a count slot; replacing one in place does not.
+        if (before === undefined) {
+          const counted = tx
+            .select({ n: count() })
+            .from(appFiles)
+            .where(eq(appFiles.appId, appId))
+            .all();
+          if ((counted[0]?.n ?? 0) >= maxFilesPerApp) return err(overFileCap);
+        }
 
         const usedRows = tx
           .select({ total: sum(appFiles.sizeBytes) })
@@ -75,15 +102,10 @@ export const createFilesService = (db: Db, limits: FilesLimits = {}): FilesServi
           .where(eq(appFiles.appId, appId))
           .all();
         const used = Number(usedRows[0]?.total ?? 0);
-        const projected = used - (existing[0]?.sizeBytes ?? 0) + bytes.byteLength;
-        if (projected > maxTotalBytesPerApp) {
-          return err({
-            kind: "quota_exceeded",
-            message: `app has reached its ${maxTotalBytesPerApp}-byte storage limit`,
-          });
-        }
+        const projected = used - (before?.sizeBytes ?? 0) + bytes.byteLength;
+        if (projected > maxTotalBytesPerApp) return err(overByteCap);
 
-        if (existing[0] !== undefined) {
+        if (before !== undefined) {
           const updated = tx
             .update(appFiles)
             .set({
@@ -95,7 +117,7 @@ export const createFilesService = (db: Db, limits: FilesLimits = {}): FilesServi
               updatedAt: now,
             })
             .where(atPath)
-            .returning()
+            .returning(metaColumns)
             .all();
           const row = updated[0];
           if (row === undefined) return err({ kind: "not_found" });
@@ -117,7 +139,7 @@ export const createFilesService = (db: Db, limits: FilesLimits = {}): FilesServi
             createdAt: now,
             updatedAt: now,
           })
-          .returning()
+          .returning(metaColumns)
           .all();
         const row = inserted[0];
         if (row === undefined) return err({ kind: "not_found" });

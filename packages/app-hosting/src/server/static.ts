@@ -13,9 +13,16 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "referrer-policy": "no-referrer",
 };
 
+// Comfortably under PATH_MAX (4096) even once joined to the version dir, and far past
+// any real asset path. A longer path makes Bun.file throw ENAMETOOLONG instead of
+// reporting a missing file. (A single overlong SEGMENT is fine — that one resolves to
+// `exists() === false`, so only total length needs a bound.)
+const MAX_REQUEST_PATH_LENGTH = 1024;
+
 // `null` for any request path we refuse to turn into a filesystem lookup: a malformed
-// percent-escape (decodeURIComponent throws) or an embedded NUL (it decodes fine, but
-// Bun.file rejects a path containing one — an unhandled throw rather than a 404).
+// percent-escape (decodeURIComponent throws), an embedded NUL (it decodes fine, but
+// Bun.file rejects a path containing one), or one long enough to blow PATH_MAX. Each
+// would otherwise be an unhandled throw rather than a 404.
 const decodeRequestPath = (raw: string): string | null => {
   let decoded: string;
   try {
@@ -23,7 +30,8 @@ const decodeRequestPath = (raw: string): string | null => {
   } catch {
     return null;
   }
-  return decoded.includes("\0") ? null : decoded;
+  if (decoded.length > MAX_REQUEST_PATH_LENGTH || decoded.includes("\0")) return null;
+  return decoded;
 };
 
 const notDeployedPage = (slug: string): string =>
