@@ -54,7 +54,7 @@ The deploy tool is text-only, so images cannot be uploaded through it. Instead, 
 A deployed app's own client-side JS can call two backends on its own origin with same-origin fetch (e.g. fetch("/_api/db/todos")). The signed-in viewer's session authorizes the request, so NEVER put API keys or tokens in the page. All data is scoped to that one app.
 
 Document store — /_api/db/<collection>:
-- GET    /_api/db/<collection>        -> { records }   list
+- GET    /_api/db/<collection>        -> { records, truncated }   list, newest first
 - POST   /_api/db/<collection>        -> { record }    create (JSON body)
 - GET    /_api/db/<collection>/<id>   -> { record }    read one
 - PUT    /_api/db/<collection>/<id>   -> { record }    replace (JSON body)
@@ -67,7 +67,9 @@ File storage — /_api/files:
 - GET    /_api/files/<path>           -> the file bytes
 - DELETE /_api/files/<path>           -> { path }       delete
 
-Limits (per app): each db record is capped at 64 KiB and a list returns the 1000 most recent records; an app holds up to 10000 records total and 100 MiB of files. Over a cap, writes get 507 and reads truncate — page or prune rather than storing unbounded data.
+Paging the list: GET /_api/db/<collection> returns the 1000 newest records by default and { truncated: true } when more exist. Pass ?limit=<1..1000> for a smaller page, and ?before=<id> (the id of the last record you got) to fetch the next page of older records. Loop until truncated is false — never assume one call returned the whole collection.
+
+Limits (per app): each db record is capped at 64 KiB; an app holds up to 10000 records totalling 32 MiB, plus 100 MiB of files. A write past a cap gets HTTP 507 — prune rather than storing unbounded data.
 
 Prefer these building blocks over external services so apps stay self-contained. Build dynamic, stateful apps — not just static pages.`;
 

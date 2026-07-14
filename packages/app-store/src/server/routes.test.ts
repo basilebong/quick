@@ -57,4 +57,25 @@ describe("store /_api/db", () => {
     const app = build(createTestDb(), "app_a");
     expect((await post(app, "/_api/db/Bad Name", { x: 1 })).status).toBe(400);
   });
+
+  test("list pages via ?limit and ?before, and says whether more remain", async () => {
+    const app = build(createTestDb(), "app_a");
+    for (let i = 0; i < 3; i++) await post(app, "/_api/db/notes", { i });
+
+    const first = await (await app.request("/_api/db/notes?limit=2")).json();
+    expect(first.records.map((r: { data: { i: number } }) => r.data.i)).toEqual([2, 1]);
+    expect(first.truncated).toBe(true);
+
+    const next = await (
+      await app.request(`/_api/db/notes?limit=2&before=${first.records[1].id}`)
+    ).json();
+    expect(next.records.map((r: { data: { i: number } }) => r.data.i)).toEqual([0]);
+    expect(next.truncated).toBe(false);
+  });
+
+  test("rejects a non-positive-integer limit", async () => {
+    const app = build(createTestDb(), "app_a");
+    expect((await app.request("/_api/db/notes?limit=0")).status).toBe(400);
+    expect((await app.request("/_api/db/notes?limit=abc")).status).toBe(400);
+  });
 });
