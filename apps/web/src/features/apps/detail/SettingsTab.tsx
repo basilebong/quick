@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteApp, updateApp } from "@/lib/apps-api";
+import { archiveApp, deleteApp, unarchiveApp, updateApp } from "@/lib/apps-api";
 import { ApiError } from "@/lib/http";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -98,6 +98,65 @@ const RenameAppCard = ({ app }: { app: AppSummary }): React.ReactElement => {
   );
 };
 
+const ArchiveAppCard = ({ app }: { app: AppSummary }): React.ReactElement => {
+  const queryClient = useQueryClient();
+  const archived = app.archivedAt !== null;
+
+  const toggle = useMutation({
+    mutationFn: () => (archived ? unarchiveApp(app.id) : archiveApp(app.id)),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.app(app.id) });
+      const previous = queryClient.getQueryData<AppSummary>(queryKeys.app(app.id));
+      queryClient.setQueryData<AppSummary>(queryKeys.app(app.id), (old) =>
+        old === undefined ? old : { ...old, archivedAt: archived ? null : Date.now() },
+      );
+      return { previous };
+    },
+    onError: (error, _next, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(queryKeys.app(app.id), context.previous);
+      }
+      toast.error(error instanceof ApiError ? error.message : "Couldn't update the app.");
+    },
+    onSuccess: () => {
+      toast.success(archived ? "App restored" : "App archived");
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.app(app.id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.apps });
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{archived ? "Restore app" : "Archive app"}</CardTitle>
+        <CardDescription>
+          {archived
+            ? "This app is archived and isn't served at its URL. Restore it to bring it back online exactly as it was."
+            : "Take this app offline at its URL while keeping every deployment, link, file and record. You can restore it any time."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button
+          variant={archived ? "default" : "outline"}
+          size="lg"
+          disabled={toggle.isPending}
+          onClick={() => toggle.mutate()}
+        >
+          {toggle.isPending
+            ? archived
+              ? "Restoring…"
+              : "Archiving…"
+            : archived
+              ? "Restore app"
+              : "Archive app"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
 export const SettingsTab = ({ app }: { app: AppSummary }): React.ReactElement => {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -117,6 +176,8 @@ export const SettingsTab = ({ app }: { app: AppSummary }): React.ReactElement =>
   return (
     <div className="flex flex-col gap-5">
       <RenameAppCard app={app} />
+
+      <ArchiveAppCard app={app} />
 
       <Card className="border-destructive/30">
         <CardHeader>

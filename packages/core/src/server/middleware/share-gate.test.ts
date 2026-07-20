@@ -16,6 +16,7 @@ const appCtx = (shareMode: "google" | "link"): AppContext => ({
   name: "Acme",
   shareMode,
   currentDeploymentId: null,
+  archived: false,
 });
 
 const resolver = (over: Partial<ShareResolver> = {}): ShareResolver => ({

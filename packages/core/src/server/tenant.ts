@@ -14,6 +14,7 @@ export type AppContext = {
   name: string;
   shareMode: ShareMode;
   currentDeploymentId: DeploymentId | null;
+  archived: boolean;
 };
 
 export type Tenant = { kind: "apex" } | { kind: "app"; app: AppContext };

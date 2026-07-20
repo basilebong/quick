@@ -66,6 +66,14 @@ export const createHostingRoutes = (deps: { service: HostingService }) =>
       const r = await deps.service.deleteApp(parseAppId(c.req.param("appId")));
       return r.kind === "ok" ? c.json({ id: r.value.id }) : fail(c, r.error);
     })
+    .post("/:appId/archive", async (c) => {
+      const r = await deps.service.setAppArchived(parseAppId(c.req.param("appId")), true);
+      return r.kind === "ok" ? c.json({ app: r.value }) : fail(c, r.error);
+    })
+    .post("/:appId/unarchive", async (c) => {
+      const r = await deps.service.setAppArchived(parseAppId(c.req.param("appId")), false);
+      return r.kind === "ok" ? c.json({ app: r.value }) : fail(c, r.error);
+    })
     .get("/:appId/deployments", async (c) =>
       c.json({ deployments: await deps.service.listDeployments(parseAppId(c.req.param("appId"))) }),
     )

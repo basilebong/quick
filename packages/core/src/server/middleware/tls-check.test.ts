@@ -12,6 +12,7 @@ const appCtx = (slug: string): AppContext => ({
   name: slug,
   shareMode: "google",
   currentDeploymentId: null,
+  archived: false,
 });
 
 const registry = (known: ReadonlySet<string>): AppRegistry => ({

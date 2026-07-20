@@ -4,6 +4,11 @@ import { users } from "@quick/core/server/schema";
 // `current_deployment_id` is a plain pointer (no FK) to avoid a circular FK with
 // deployments; the service maintains it. Deleting an app cascades its
 // deployments, links, and access log.
+//
+// `archived_at` is null while the app is live and set to the archive time once the
+// owner takes it offline: an archived app keeps every deployment, link, file, and
+// record but is no longer served (resolve-app 404s it, exactly like an unknown
+// slug), and its slug stays reserved. Clearing it re-publishes the app unchanged.
 export const apps = sqliteTable(
   "apps",
   {
@@ -12,6 +17,7 @@ export const apps = sqliteTable(
     name: text("name").notNull(),
     shareMode: text("share_mode").notNull(),
     currentDeploymentId: text("current_deployment_id"),
+    archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
     ownerUserId: text("owner_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

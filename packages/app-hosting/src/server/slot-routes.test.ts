@@ -37,6 +37,7 @@ const tenantApp = (service: SlotsService, appId: AppId) =>
           name: "Acme",
           shareMode: "link",
           currentDeploymentId: null,
+          archived: false,
         },
       });
       c.set("viewer", { kind: "link", linkId: "l" });

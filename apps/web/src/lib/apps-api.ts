@@ -11,6 +11,7 @@ export const AppSummarySchema = v.object({
   shareMode: ShareModeSchema,
   allowedEmails: v.array(v.string()),
   currentDeploymentId: v.nullable(v.string()),
+  archivedAt: v.nullable(v.number()),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
@@ -45,6 +46,26 @@ export const deleteApp = async (appId: string): Promise<string> => {
 
 export const fetchApp = async (appId: string): Promise<AppSummary> => {
   const body = await requestJson(`/api/apps/${encodeURIComponent(appId)}`, AppEnvelopeSchema);
+  return body.app;
+};
+
+export const archiveApp = async (appId: string): Promise<AppSummary> => {
+  const body = await requestJson(
+    `/api/apps/${encodeURIComponent(appId)}/archive`,
+    AppEnvelopeSchema,
+    {
+      method: "POST",
+    },
+  );
+  return body.app;
+};
+
+export const unarchiveApp = async (appId: string): Promise<AppSummary> => {
+  const body = await requestJson(
+    `/api/apps/${encodeURIComponent(appId)}/unarchive`,
+    AppEnvelopeSchema,
+    { method: "POST" },
+  );
   return body.app;
 };
 

@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArchivedBadge } from "@/features/apps/atoms/ArchivedBadge";
 import { CopyButton } from "@/features/apps/atoms/CopyButton";
 import { ShareModeBadge } from "@/features/apps/atoms/ShareModeBadge";
 import { AccessLogTab } from "@/features/apps/detail/AccessLogTab";
@@ -75,6 +76,7 @@ export const AppDetailScreen = ({ appId }: { appId: string }): React.ReactElemen
                   {current.name}
                 </h1>
                 <ShareModeBadge mode={current.shareMode} />
+                {current.archivedAt !== null ? <ArchivedBadge /> : null}
               </div>
               <a
                 href={baseUrl}
