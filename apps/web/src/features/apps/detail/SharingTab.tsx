@@ -1,6 +1,7 @@
 import type { AppSummary, ShareLinkView } from "@quick/app-hosting/shared";
 import type { ShareMode } from "@quick/core/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { match } from "ts-pattern";
 
@@ -96,13 +97,17 @@ const RevokeLinkButton = ({
 
 export const SharingTab = ({ app }: { app: AppSummary }): React.ReactElement => {
   const queryClient = useQueryClient();
+  const [confirmingSwitch, setConfirmingSwitch] = useState(false);
 
   const setMode = useMutation({
     mutationFn: (mode: ShareMode) => updateApp(app.id, { shareMode: mode }),
     onSuccess: async (updated) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.app(app.id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.links(app.id) });
       toast.success(
-        updated.shareMode === "google" ? "Now requires Google sign-in" : "Now shared by link",
+        updated.shareMode === "google"
+          ? "Now requires Google sign-in — share links revoked"
+          : "Now shared by link",
       );
     },
     onError: (error) => {
@@ -116,6 +121,21 @@ export const SharingTab = ({ app }: { app: AppSummary }): React.ReactElement => 
     enabled: app.shareMode === "link",
   });
 
+  const liveLinks = (links.data ?? []).filter((l) => l.active).length;
+  // Until the links have actually loaded, `liveLinks` reads 0 whether the app has none
+  // or we simply don't know yet — and a confirmation that silently no-ops on the second
+  // case is not a guardrail. Nothing may be switched until the count is truthful.
+  const liveLinksKnown = app.shareMode !== "link" || links.isSuccess;
+
+  const chooseMode = (value: string): void => {
+    const mode: ShareMode = value === "link" ? "link" : "google";
+    if (mode === app.shareMode) return;
+    // Switching to google permanently revokes every live link (switching back does
+    // not restore them), so it needs the same confirmation as revoking one by hand.
+    if (mode === "google" && liveLinks > 0) setConfirmingSwitch(true);
+    else setMode.mutate(mode);
+  };
+
   return (
     <div className="flex flex-col gap-5">
       <Card>
@@ -126,8 +146,8 @@ export const SharingTab = ({ app }: { app: AppSummary }): React.ReactElement => 
         <CardContent>
           <Select
             value={app.shareMode}
-            disabled={setMode.isPending}
-            onValueChange={(value) => setMode.mutate(value === "link" ? "link" : "google")}
+            disabled={setMode.isPending || !liveLinksKnown}
+            onValueChange={chooseMode}
           >
             <SelectTrigger aria-label="Share mode">
               <SelectValue />
@@ -139,6 +159,29 @@ export const SharingTab = ({ app }: { app: AppSummary }): React.ReactElement => 
           </Select>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmingSwitch} onOpenChange={setConfirmingSwitch}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Require Google sign-in?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {liveLinks === 1 ? "The 1 active share link" : `All ${liveLinks} active share links`}{" "}
+              will be revoked, and anyone using {liveLinks === 1 ? "it" : "them"} will lose access
+              immediately. Switching back to secret links won't restore{" "}
+              {liveLinks === 1 ? "it" : "them"} — you'll need to create new ones.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => setMode.mutate("google")}
+            >
+              Revoke and switch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {match(app.shareMode)
         .with("google", () => <AllowedEmailsCard app={app} />)

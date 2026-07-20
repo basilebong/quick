@@ -33,4 +33,30 @@ describe("served app error responses carry the isolation headers", () => {
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(res.headers.get("content-security-policy") ?? "").toContain("frame-ancestors 'none'");
   });
+
+  test("a malformed percent-escape is a 400, not an unhandled 500, and keeps the headers", async () => {
+    const app = build(mkdtempSync(join(tmpdir(), "quick-st-")));
+    const res = await app.request("https://acme.quick.example.com/%");
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("content-security-policy") ?? "").toContain("frame-ancestors 'none'");
+  });
+
+  test("a percent-encoded NUL is a 400, not an unhandled 500, and keeps the headers", async () => {
+    const app = build(mkdtempSync(join(tmpdir(), "quick-st-")));
+    const res = await app.request("https://acme.quick.example.com/%00");
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("content-security-policy") ?? "").toContain("frame-ancestors 'none'");
+  });
+
+  // Resolved past PATH_MAX (4096), Bun.file().exists() throws ENAMETOOLONG rather than
+  // reporting a missing file — an unhandled 500 any viewer could drive.
+  test("an overlong path is a 400, not an unhandled 500, and keeps the headers", async () => {
+    const app = build(mkdtempSync(join(tmpdir(), "quick-st-")));
+    const res = await app.request(`https://acme.quick.example.com/${"a".repeat(5000)}`);
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("content-security-policy") ?? "").toContain("frame-ancestors 'none'");
+  });
 });

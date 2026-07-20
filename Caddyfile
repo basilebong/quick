@@ -13,7 +13,9 @@
 		respond 404
 	}
 	handle {
-		reverse_proxy app:3000
+		reverse_proxy app:3000 {
+			header_up X-Forwarded-For {remote_host}
+		}
 	}
 }
 
@@ -31,6 +33,7 @@
 	handle {
 		reverse_proxy app:3000 {
 			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
 		}
 	}
 }

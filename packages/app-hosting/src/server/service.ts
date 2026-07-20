@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { AccessEntry, AppContext, Db, LinkValidation } from "@quick/core/server";
-import { and, desc, eq } from "@quick/core/server/drizzle";
+import { and, desc, eq, isNull } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
 import {
   type AppId,
@@ -15,6 +15,7 @@ import {
   parseShareLinkId,
   parseUserId,
 } from "@quick/core/shared";
+import { match } from "ts-pattern";
 import { ulid } from "ulid";
 import type {
   AccessLogEntry,
@@ -246,27 +247,52 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
           message: "An email allowlist applies only to google-mode apps.",
         });
       }
-      const set: { name?: string; shareMode?: string; updatedAt: Date } = { updatedAt: new Date() };
+      const now = new Date();
+      const set: { name?: string; shareMode?: string; updatedAt: Date } = { updatedAt: now };
       if (patch.name !== undefined) set.name = patch.name;
       if (patch.shareMode !== undefined) set.shareMode = patch.shareMode;
-      const updated = await db.update(apps).set(set).where(eq(apps.id, appId)).returning();
-      const row = updated[0];
-      if (row === undefined) return err({ kind: "not_found" });
-      if (patch.allowedEmails !== undefined) {
-        const emails = [...new Set(patch.allowedEmails.map(normalizeEmail))];
-        const now = new Date();
-        // Atomic replace: if the insert fails after the delete, a non-transactional
-        // version would leave the allowlist empty — which reads as "any signed-in
-        // Google account may view" (fail-open). bun:sqlite transactions are sync.
-        db.transaction((tx) => {
+      const emails =
+        patch.allowedEmails === undefined
+          ? null
+          : [...new Set(patch.allowedEmails.map(normalizeEmail))];
+      const switchedTo =
+        patch.shareMode !== undefined && patch.shareMode !== current.shareMode
+          ? patch.shareMode
+          : null;
+
+      // One transaction, because each of these is fail-open on its own. A half-applied
+      // allowlist reads as "any signed-in Google account may view"; a mode that lands
+      // without its revocation leaves the old mode's credentials armed, ready to be
+      // re-honoured on a switch back. bun:sqlite transactions are sync.
+      const row = db.transaction((tx) => {
+        const updated = tx.update(apps).set(set).where(eq(apps.id, appId)).returning().all();
+        const app = updated[0];
+        if (app === undefined) return undefined;
+        if (emails !== null) {
           tx.delete(appAllowedEmails).where(eq(appAllowedEmails.appId, appId)).run();
           if (emails.length > 0) {
             tx.insert(appAllowedEmails)
               .values(emails.map((email) => ({ id: ulid(), appId, email, createdAt: now })))
               .run();
           }
-        });
-      }
+        }
+        if (switchedTo !== null) {
+          match(switchedTo)
+            .with("google", () => {
+              tx.update(shareLinks)
+                .set({ revokedAt: now })
+                .where(and(eq(shareLinks.appId, appId), isNull(shareLinks.revokedAt)))
+                .run();
+            })
+            .with("link", () => {
+              tx.delete(appSessions).where(eq(appSessions.appId, appId)).run();
+              tx.delete(appSessionCodes).where(eq(appSessionCodes.appId, appId)).run();
+            })
+            .exhaustive();
+        }
+        return app;
+      });
+      if (row === undefined) return err({ kind: "not_found" });
       return ok(rowToAppSummary(row, await allowedEmailsFor(appId)));
     },
 

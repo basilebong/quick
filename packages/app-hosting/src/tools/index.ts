@@ -54,7 +54,7 @@ The deploy tool is text-only, so images cannot be uploaded through it. Instead, 
 A deployed app's own client-side JS can call two backends on its own origin with same-origin fetch (e.g. fetch("/_api/db/todos")). The signed-in viewer's session authorizes the request, so NEVER put API keys or tokens in the page. All data is scoped to that one app.
 
 Document store — /_api/db/<collection>:
-- GET    /_api/db/<collection>        -> { records }   list
+- GET    /_api/db/<collection>        -> { records }   list, newest first
 - POST   /_api/db/<collection>        -> { record }    create (JSON body)
 - GET    /_api/db/<collection>/<id>   -> { record }    read one
 - PUT    /_api/db/<collection>/<id>   -> { record }    replace (JSON body)
@@ -66,6 +66,8 @@ File storage — /_api/files:
 - POST   /_api/files?path=<path>      -> { file }       upload (raw body + Content-Type header)
 - GET    /_api/files/<path>           -> the file bytes
 - DELETE /_api/files/<path>           -> { path }       delete
+
+Limits (per app): each db record is capped at 64 KiB; an app holds up to 10000 records totalling 8 MiB, plus up to 10000 files totalling 100 MiB. A write past a cap gets HTTP 507 — prune rather than storing unbounded data. GET on a collection returns ALL of its records — there is no cursor, one fetch is the whole collection — so keep collections small enough to fetch in one go.
 
 Prefer these building blocks over external services so apps stay self-contained. Build dynamic, stateful apps — not just static pages.`;
 

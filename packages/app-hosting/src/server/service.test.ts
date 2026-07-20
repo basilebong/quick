@@ -231,6 +231,37 @@ describe("hosting service", () => {
     expect(await service.isEmailAllowedForApp(appId, "stranger@example.com")).toBe(false);
   });
 
+  test("switching link -> google revokes every live share link, permanently", async () => {
+    const app = await newApp("switcher", "link");
+    const appId = parseAppId(app.id);
+    const link = await service.createLink(
+      appId,
+      { label: "client", expiresAt: Date.now() + 3_600_000 },
+      owner,
+    );
+    if (link.kind !== "ok") throw new Error("createLink failed");
+    expect((await service.validateLinkToken(appId, link.value.token)).kind).toBe("valid");
+
+    const switched = await service.updateApp(appId, { shareMode: "google" });
+    expect(switched.kind).toBe("ok");
+    expect((await service.validateLinkToken(appId, link.value.token)).kind).toBe("invalid");
+
+    // Switching back must NOT re-arm the old link.
+    await service.updateApp(appId, { shareMode: "link" });
+    expect((await service.validateLinkToken(appId, link.value.token)).kind).toBe("invalid");
+  });
+
+  test("switching google -> link invalidates every per-app session", async () => {
+    const app = await newApp("switcher2", "google");
+    const appId = parseAppId(app.id);
+    const token = await service.createAppSession(appId, owner);
+    expect(await service.validateAppSession(appId, token)).not.toBeNull();
+
+    const switched = await service.updateApp(appId, { shareMode: "link" });
+    expect(switched.kind).toBe("ok");
+    expect(await service.validateAppSession(appId, token)).toBeNull();
+  });
+
   test("deleting an app removes its on-disk bundles", async () => {
     const app = await newApp("gone");
     const appId = parseAppId(app.id);

@@ -6,12 +6,15 @@ HARD rules for Quick, on top of the constitution.
 - NO cookie is EVER scoped to the parent domain (`.${QUICK_DOMAIN}`). Better Auth
   is host-only (no `crossSubDomainCookies`); keep it that way.
 - All `*.${QUICK_DOMAIN}` are the SAME SITE, so `SameSite` does NOT isolate apps —
-  host-only cookie scoping does. The per-app session cookie (`quick_app_sess`) is
-  host-only and is the ONLY credential `/_api/*` accepts.
+  host-only cookie scoping does. Both per-app credentials are host-only (no `Domain`):
+  the google-mode session cookie (`quick_app_sess`) and the link-mode cookie
+  (`quick_link`). One of these — matching the app's share mode — is what `/_api/*`
+  requires; the owner's apex Better Auth session is never accepted on a tenant host.
 - Cross-subdomain SSO goes through the apex one-time-code handoff
-  (`/_sso/start` → `/_sso/callback`), never a shared cookie.
-- A regression test MUST assert `quick_app_sess` carries no `Domain` attribute, and
-  that `/_api/*` rejects a request not bearing this host-only cookie.
+  (`/sso/grant` on the apex → `/sso/callback` on the tenant), never a shared cookie.
+- A regression test MUST assert both `quick_app_sess` and `quick_link` carry no
+  `Domain` attribute, and that `/_api/*` rejects a request bearing no valid per-app
+  credential for the app's share mode.
 
 ## Secrets at rest
 - Share-link tokens are random ≥256-bit values; store ONLY their SHA-256 hash.
