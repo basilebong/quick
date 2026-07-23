@@ -13,7 +13,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.6.23",
+    "@better-auth/oauth-provider": "1.6.25",
     "@quick/app-files": "workspace:*",
     "@quick/app-hosting": "workspace:*",
     "@quick/app-store": "workspace:*",
