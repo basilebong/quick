@@ -16,7 +16,10 @@ export const createResolveApp = (deps: { rootDomain: string; registry: AppRegist
       return next();
     }
     const app = await deps.registry.findBySlug(sub.label);
-    if (app === null) return c.html(notFoundAppPage(sub.label), 404);
+    // An archived app is off the public surface: it 404s exactly like an unknown
+    // slug, so the share gate and static serving below are never reached and an
+    // archived link-mode app leaks no more than a slug that never existed.
+    if (app === null || app.archived) return c.html(notFoundAppPage(sub.label), 404);
     c.set("tenant", { kind: "app", app });
     return next();
   });

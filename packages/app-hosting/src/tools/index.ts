@@ -171,7 +171,12 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       const text =
         apps.length === 0
           ? "No apps yet."
-          : apps.map((a) => `${a.slug} — ${a.name} [${a.shareMode}]`).join("\n");
+          : apps
+              .map(
+                (a) =>
+                  `${a.slug} — ${a.name} [${a.shareMode}]${a.archivedAt !== null ? " [archived]" : ""}`,
+              )
+              .join("\n");
       return { content: [{ type: "text" as const, text }], structuredContent: { apps } };
     },
   );
@@ -282,14 +287,18 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
         }),
       );
       const url = appUrl(slug);
+      const archived = existing?.archived ?? false;
+      const archivedNote = archived
+        ? `\nNote: "${slug}" is archived, so this version is not served at its URL. Unarchive it (quick__unarchive_app) to make it live.`
+        : "";
       return {
         content: [
           {
             type: "text" as const,
-            text: `Deployed v${r.value.version} of "${slug}" (${mode}, ${r.value.fileCount} files) → ${url}`,
+            text: `Deployed v${r.value.version} of "${slug}" (${mode}, ${r.value.fileCount} files) → ${url}${archivedNote}`,
           },
         ],
-        structuredContent: { url, shareMode: mode, deployment: r.value },
+        structuredContent: { url, shareMode: mode, archived, deployment: r.value },
       };
     },
   );
@@ -441,6 +450,70 @@ export const registerHostingTools = (server: McpServer, deps: HostingToolDeps): 
       return {
         content: [{ type: "text" as const, text }],
         structuredContent: { slug, allowedEmails: r.value.allowedEmails },
+      };
+    },
+  );
+
+  server.registerTool(
+    "quick__archive_app",
+    {
+      title: "Archive app",
+      description:
+        "Take an app offline without deleting it: it stops serving at its URL (visitors get a 404, the same as an app that never existed) while keeping every deployment, share link, file, and record, and its slug stays reserved. Reverse it any time with quick__unarchive_app to bring the app back exactly as it was.",
+      inputSchema: { slug: z.string().min(1) },
+    },
+    async ({ slug }) => {
+      const app = await service.findBySlug(slug);
+      if (app === null) return errorResult({ kind: "not_found" });
+      const r = await service.setAppArchived(app.id, true);
+      if (r.kind === "err") return errorResult(r.error);
+      await safely(
+        "audit",
+        audit.record({
+          userId: actor,
+          action: "quick__archive_app",
+          via: "mcp",
+          metadata: { slug },
+        }),
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Archived "${slug}". It no longer serves at its URL; unarchive it to bring it back.`,
+          },
+        ],
+        structuredContent: { app: r.value },
+      };
+    },
+  );
+
+  server.registerTool(
+    "quick__unarchive_app",
+    {
+      title: "Unarchive app",
+      description:
+        "Bring an archived app back online at its URL, exactly as it was before — same deployment, share links, files, and records. Has no effect on an app that is not archived.",
+      inputSchema: { slug: z.string().min(1) },
+    },
+    async ({ slug }) => {
+      const app = await service.findBySlug(slug);
+      if (app === null) return errorResult({ kind: "not_found" });
+      const r = await service.setAppArchived(app.id, false);
+      if (r.kind === "err") return errorResult(r.error);
+      await safely(
+        "audit",
+        audit.record({
+          userId: actor,
+          action: "quick__unarchive_app",
+          via: "mcp",
+          metadata: { slug },
+        }),
+      );
+      const url = appUrl(slug);
+      return {
+        content: [{ type: "text" as const, text: `Unarchived "${slug}" → ${url}` }],
+        structuredContent: { url, app: r.value },
       };
     },
   );

@@ -12,6 +12,7 @@ export const rowToAppContext = (row: AppRow): AppContext => ({
   shareMode: shareModeOf(row.shareMode),
   currentDeploymentId:
     row.currentDeploymentId === null ? null : parseDeploymentId(row.currentDeploymentId),
+  archived: row.archivedAt !== null,
 });
 
 export const rowToAppSummary = (row: AppRow, allowedEmails: string[]): AppSummary => ({
@@ -21,6 +22,7 @@ export const rowToAppSummary = (row: AppRow, allowedEmails: string[]): AppSummar
   shareMode: shareModeOf(row.shareMode),
   allowedEmails,
   currentDeploymentId: row.currentDeploymentId,
+  archivedAt: row.archivedAt === null ? null : row.archivedAt.getTime(),
   createdAt: row.createdAt.getTime(),
   updatedAt: row.updatedAt.getTime(),
 });

@@ -3,7 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 
 export type Registrar = (server: McpServer) => void;
 
-const SERVER_INFO = { name: "Quick", version: "4.1.0" } as const;
+const SERVER_INFO = { name: "Quick", version: "4.2.0" } as const;
 
 export const runMcpRequest = async (
   register: Registrar,

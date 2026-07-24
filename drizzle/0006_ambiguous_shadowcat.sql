@@ -1,0 +1,1 @@
+ALTER TABLE `apps` ADD `archived_at` integer;

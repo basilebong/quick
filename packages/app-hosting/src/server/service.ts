@@ -72,6 +72,7 @@ export type HostingService = {
   createApp(input: CreateAppInput, ownerId: UserId): Promise<Result<AppSummary, HostingError>>;
   getApp(appId: AppId): Promise<Result<AppSummary, HostingError>>;
   updateApp(appId: AppId, patch: UpdateAppInput): Promise<Result<AppSummary, HostingError>>;
+  setAppArchived(appId: AppId, archived: boolean): Promise<Result<AppSummary, HostingError>>;
   deleteApp(appId: AppId): Promise<Result<{ id: string; slug: string }, HostingError>>;
   // deployments
   listDeployments(appId: AppId): Promise<Deployment[]>;
@@ -292,6 +293,20 @@ export const createHostingService = (db: Db, opts: { appsDir: string }): Hosting
         }
         return app;
       });
+      if (row === undefined) return err({ kind: "not_found" });
+      return ok(rowToAppSummary(row, await allowedEmailsFor(appId)));
+    },
+
+    async setAppArchived(appId, archived) {
+      const current = await appById(appId);
+      if (current === undefined) return err({ kind: "not_found" });
+      const now = new Date();
+      const updated = await db
+        .update(apps)
+        .set({ archivedAt: archived ? now : null, updatedAt: now })
+        .where(eq(apps.id, appId))
+        .returning();
+      const row = updated[0];
       if (row === undefined) return err({ kind: "not_found" });
       return ok(rowToAppSummary(row, await allowedEmailsFor(appId)));
     },

@@ -162,4 +162,43 @@ describe("composition (tenancy + CSRF wiring)", () => {
       expect((await askFor("evil.example.com")).status).toBe(404);
     });
   });
+
+  test("archiving an app takes it off the public surface (404 before the share gate); unarchiving restores it", async () => {
+    await withTestAuth({ baseURL: BASE }, async ({ auth, db, signSessionCookie }) => {
+      const { app, hosting, cookie, ownerId } = await build(auth, db, signSessionCookie);
+      const created = await hosting.createApp(
+        { slug: "acme", name: "Acme", shareMode: "google" },
+        ownerId,
+      );
+      if (created.kind !== "ok") throw new Error("createApp failed");
+      const appId = parseAppId(created.value.id);
+
+      const visit = () =>
+        app.request("https://acme.quick.example.com/", {
+          headers: { host: "acme.quick.example.com", "sec-fetch-dest": "document" },
+        });
+
+      // Live: a google-mode navigation redirects to the apex sign-in grant.
+      expect((await visit()).status).toBe(302);
+
+      const archived = await app.request(`${BASE}/api/apps/${appId}/archive`, {
+        method: "POST",
+        headers: { host: "quick.example.com", cookie, "sec-fetch-site": "same-origin" },
+      });
+      expect(archived.status).toBe(200);
+
+      // Archived: resolve-app 404s before the share gate runs — no redirect.
+      const down = await visit();
+      expect(down.status).toBe(404);
+      expect(await down.text()).toContain("No app here");
+
+      const restored = await app.request(`${BASE}/api/apps/${appId}/unarchive`, {
+        method: "POST",
+        headers: { host: "quick.example.com", cookie, "sec-fetch-site": "same-origin" },
+      });
+      expect(restored.status).toBe(200);
+
+      expect((await visit()).status).toBe(302);
+    });
+  });
 });

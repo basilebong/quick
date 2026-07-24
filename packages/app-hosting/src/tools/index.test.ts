@@ -490,6 +490,68 @@ describe("quick__set_allowed_emails", () => {
   });
 });
 
+describe("quick__archive_app + quick__unarchive_app", () => {
+  test("archiving takes an app offline (flagged in list_apps) and unarchiving restores it", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: { slug: "brochure", files: [file("index.html", "<!doctype html>x")] },
+      });
+
+      const archived = await h.client.callTool({
+        name: "quick__archive_app",
+        arguments: { slug: "brochure" },
+      });
+      expect(archived.isError ?? false).toBe(false);
+      expect((await h.service.findBySlug("brochure"))?.archived).toBe(true);
+      expect(
+        allTextOf((await h.client.callTool({ name: "quick__list_apps", arguments: {} })).content),
+      ).toContain("[archived]");
+
+      const restored = await h.client.callTool({
+        name: "quick__unarchive_app",
+        arguments: { slug: "brochure" },
+      });
+      expect(restored.isError ?? false).toBe(false);
+      expect((await h.service.findBySlug("brochure"))?.archived).toBe(false);
+      expect(
+        allTextOf((await h.client.callTool({ name: "quick__list_apps", arguments: {} })).content),
+      ).not.toContain("[archived]");
+    });
+  });
+
+  test("archiving an unknown slug errors", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      const res = await h.client.callTool({
+        name: "quick__archive_app",
+        arguments: { slug: "ghost" },
+      });
+      expect(res.isError ?? false).toBe(true);
+    });
+  });
+
+  test("deploying to an archived app succeeds but flags that it is not live", async () => {
+    await withTestAuth({}, async (ctx) => {
+      const h = await setup(ctx);
+      await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: { slug: "staged", files: [file("index.html", "<!doctype html>v1")] },
+      });
+      await h.client.callTool({ name: "quick__archive_app", arguments: { slug: "staged" } });
+
+      const res = await h.client.callTool({
+        name: "quick__deploy_files",
+        arguments: { slug: "staged", files: [file("index.html", "<!doctype html>v2")] },
+      });
+      expect(res.isError ?? false).toBe(false);
+      expect(textOf(res.content)).toContain("archived");
+      expect(res.structuredContent).toMatchObject({ archived: true });
+    });
+  });
+});
+
 describe("quick__deploy_files slots + quick__list_slots", () => {
   const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]);
 
@@ -586,6 +648,8 @@ describe("build_with_quick prompt", () => {
       const omittedFromGuide = new Set([
         "quick__list_apps",
         "quick__create_app",
+        "quick__archive_app",
+        "quick__unarchive_app",
         "quick__list_share_links",
         "quick__revoke_share_link",
       ]);

@@ -15,6 +15,7 @@ const tenant = (id: string) => ({
     name: "Acme",
     shareMode: "link" as const,
     currentDeploymentId: null,
+    archived: false,
   },
 });
 

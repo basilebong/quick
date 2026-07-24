@@ -18,6 +18,7 @@ const build = (appsDir: string) =>
           name: "Acme",
           shareMode: "link",
           currentDeploymentId: parseDeploymentId("dep_1"),
+          archived: false,
         },
       });
       return next();

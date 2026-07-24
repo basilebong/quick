@@ -7,6 +7,7 @@ export type AppSummary = {
   shareMode: ShareMode;
   allowedEmails: string[];
   currentDeploymentId: string | null;
+  archivedAt: number | null;
   createdAt: number;
   updatedAt: number;
 };

@@ -178,6 +178,27 @@ describe("hosting service", () => {
     expect(missing.kind === "err" && missing.error.kind).toBe("not_found");
   });
 
+  test("archives and unarchives an app; the flag rides summaries and app context", async () => {
+    const app = await newApp("acme", "google");
+    const appId = parseAppId(app.id);
+    expect(app.archivedAt).toBeNull();
+    expect((await service.findBySlug("acme"))?.archived).toBe(false);
+
+    const archived = await service.setAppArchived(appId, true);
+    expect(archived.kind === "ok" && archived.value.archivedAt !== null).toBe(true);
+    expect((await service.listApps()).find((a) => a.id === app.id)?.archivedAt).not.toBeNull();
+    expect((await service.findBySlug("acme"))?.archived).toBe(true);
+
+    const restored = await service.setAppArchived(appId, false);
+    expect(restored.kind === "ok" && restored.value.archivedAt).toBeNull();
+    expect((await service.findBySlug("acme"))?.archived).toBe(false);
+  });
+
+  test("setAppArchived on a missing app is not_found", async () => {
+    const missing = await service.setAppArchived(parseAppId("app_missing"), true);
+    expect(missing.kind === "err" && missing.error.kind).toBe("not_found");
+  });
+
   test("per-app email allowlist: replace, expose on summary, and enforce membership", async () => {
     const app = await newApp("acme", "google");
     const appId = parseAppId(app.id);
