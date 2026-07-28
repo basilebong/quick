@@ -16,7 +16,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.6.23",
+    "@better-auth/oauth-provider": "1.6.25",
     "@modelcontextprotocol/sdk": "1.29.0",
     "better-auth": "1.6.23",
     "drizzle-orm": "0.45.2",
