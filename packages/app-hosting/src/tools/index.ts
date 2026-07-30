@@ -2,10 +2,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AuditRecorder } from "@quick/core/server";
 import {
   type AppId,
-  type ShareMode,
-  type UserId,
   parseAppId,
   parseShareLinkId,
+  type ShareMode,
+  type UserId,
 } from "@quick/core/shared";
 import { match } from "ts-pattern";
 import * as z from "zod";
@@ -13,8 +13,8 @@ import {
   DEPLOY_MAX_FILES,
   type DeployFile,
   type HostingService,
-  type SlotsService,
   isSafeDeployPath,
+  type SlotsService,
   validateDeploymentFiles,
 } from "../server/index.ts";
 import {

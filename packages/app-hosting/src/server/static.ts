@@ -1,6 +1,6 @@
 import { isAbsolute, relative, resolve } from "node:path";
-import { escapeHtml } from "@quick/core/server";
 import type { TenantVariables } from "@quick/core/server";
+import { escapeHtml } from "@quick/core/server";
 import type { Context } from "hono";
 
 // Sent on every served app asset. Apps are user-authored, so default to

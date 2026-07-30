@@ -68,3 +68,32 @@ one advisory is deferred:
 Do not add further entries without the same three things here: the ID, why we are not
 exposed, and the condition that removes it. Never lower `--audit-level` to dodge an
 advisory — that hides every future one too.
+
+## Transitive overrides
+
+`pnpm.overrides` in the root `package.json` exists ONLY to force-patch a vulnerable
+*transitive* dependency that no direct-dependency upgrade can reach. Upgrading the
+direct dependency is always preferred; reach for an override only after confirming
+no released version of the parent pulls a fixed range. `package.json` cannot carry
+comments, so each override is justified here:
+
+- **`esbuild@<0.25.0` → `>=0.25.0`** (GHSA-67mh-4wv8-2f99, dev-server request
+  smuggling). `drizzle-kit` → `@esbuild-kit/esm-loader` → `@esbuild-kit/core-utils`
+  pins `esbuild: ~0.18.20`. `@esbuild-kit/*` is deprecated and unmaintained (its
+  successor is `tsx`, which `drizzle-kit` also depends on), so the pin will never be
+  fixed upstream. Verified still load-bearing: removing the override resolves
+  `esbuild@0.18.20` and the audit fails. **Remove when `drizzle-kit` drops
+  `@esbuild-kit/esm-loader`.**
+- **`brace-expansion@<5.0.8` → `>=5.0.8`** (GHSA-mh99-v99m-4gvg / CVE-2026-14257,
+  unbounded expansion length → uncatchable OOM). Reached at BUILD time only, via
+  `vite-plugin-pwa` → `workbox-build` → `@trickfilm400/rollup-plugin-off-main-thread`
+  → `ejs` → `jake` → `filelist` → `minimatch@5`, which pins `brace-expansion: ^2.0.1`.
+  `filelist@2` moved to `minimatch@10` (fixed range), but `ejs@3.1.10` still pulls
+  `jake@10`. Note `ejs`'s library code never actually requires `jake` — verified by
+  grep, it is a packaging artifact — so nothing on our build path calls the vulnerable
+  expander. The override is defence-in-depth to keep the audit gate honest. **Remove
+  when `workbox-build` ships a `rollup-plugin-off-main-thread` that drops `ejs`, or
+  when `ejs` moves to `jake@12`.**
+
+Overrides are not a substitute for a real upgrade. Every entry above must be re-checked
+on each dependency audit and dropped as soon as the upstream chain is fixed.

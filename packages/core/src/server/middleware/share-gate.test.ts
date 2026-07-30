@@ -8,7 +8,7 @@ import type {
   TenantVariables,
   ViewerVariables,
 } from "../tenant.ts";
-import { APP_SESSION_COOKIE, LINK_COOKIE, createShareGate } from "./share-gate.ts";
+import { APP_SESSION_COOKIE, createShareGate, LINK_COOKIE } from "./share-gate.ts";
 
 const appCtx = (shareMode: "google" | "link"): AppContext => ({
   id: parseAppId("app_1"),

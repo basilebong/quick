@@ -1,7 +1,7 @@
 import { parseAppFileId } from "@quick/core/shared";
 import type { AppFileMeta } from "../shared/index.ts";
-import { appFiles } from "./schema.ts";
 import type { AppFileRow } from "./schema.ts";
+import { appFiles } from "./schema.ts";
 
 // Every column `rowToMeta` reads, and none of the ones it doesn't — notably not the
 // inline `blob`. Selecting the whole row to describe a file reads every byte of it off

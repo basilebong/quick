@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
-
-import { Wordmark } from "@/components/Wordmark";
 import { AccountMenu, ownerInitial } from "@/components/dashboard/nav";
+import { Wordmark } from "@/components/Wordmark";
 import { useOwner } from "@/lib/owner";
 
 export const DashboardMobileHeader = (): React.ReactElement => {

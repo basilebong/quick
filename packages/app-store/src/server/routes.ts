@@ -1,5 +1,5 @@
 import type { TenantVariables, ViewerVariables } from "@quick/core/server";
-import { type AppId, type Result, parseAppId, parseAppRecordId } from "@quick/core/shared";
+import { type AppId, parseAppId, parseAppRecordId, type Result } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
 import { type AppRecord, type StoreError, storeErrorStatus } from "../shared/index.ts";
 import type { StoreService } from "./service.ts";

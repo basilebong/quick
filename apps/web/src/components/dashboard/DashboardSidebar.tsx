@@ -1,8 +1,7 @@
 import { CaretUpDownIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-
-import { Wordmark } from "@/components/Wordmark";
 import { AccountMenu, NAV_ITEMS, ownerInitial } from "@/components/dashboard/nav";
+import { Wordmark } from "@/components/Wordmark";
 import { cn } from "@/lib/cn";
 import { useOwner } from "@/lib/owner";
 

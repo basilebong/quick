@@ -1,8 +1,7 @@
 import { ShieldIcon } from "@phosphor-icons/react";
 import { useRouter } from "@tanstack/react-router";
-
-import { Wordmark } from "@/components/Wordmark";
 import { Button } from "@/components/ui/button";
+import { Wordmark } from "@/components/Wordmark";
 import { signOut } from "@/lib/auth-client";
 
 type NotOwnerScreenProps = {

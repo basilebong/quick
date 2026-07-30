@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  isValidSlotKey,
   SLOT_MAX_BYTES,
   SLOT_MAX_PER_APP,
-  isValidSlotKey,
   sniffImageMime,
   validateSlotDefinitions,
 } from "./slots.ts";

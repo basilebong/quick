@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
-import { type Db, createDb } from "../db/index.ts";
+import { createDb, type Db } from "../db/index.ts";
 
 const migrationsFolder = resolve(import.meta.dir, "../../../../../drizzle");
 

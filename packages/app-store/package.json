@@ -14,9 +14,9 @@
   },
   "dependencies": {
     "@quick/core": "workspace:*",
-    "hono": "4.12.31",
+    "hono": "4.12.32",
     "ts-pattern": "5.9.0",
     "ulid": "3.0.2",
-    "valibot": "1.4.0"
+    "valibot": "1.4.2"
   }
 }

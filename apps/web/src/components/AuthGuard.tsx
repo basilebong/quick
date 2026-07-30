@@ -2,9 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { type ReactElement, type ReactNode, useEffect } from "react";
 import { match } from "ts-pattern";
-
-import { NotOwnerScreen } from "@/features/auth/NotOwnerScreen";
 import { Spinner } from "@/features/auth/atoms/Spinner";
+import { NotOwnerScreen } from "@/features/auth/NotOwnerScreen";
 import { useSession } from "@/lib/auth-client";
 import { fetchMe } from "@/lib/me-api";
 import { OwnerProvider } from "@/lib/owner";

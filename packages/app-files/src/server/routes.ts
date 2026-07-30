@@ -2,7 +2,7 @@ import type { TenantVariables, ViewerVariables } from "@quick/core/server";
 import { type AppId, parseAppId, parseUserId } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { MAX_FILE_BYTES, filesErrorStatus } from "../shared/index.ts";
+import { filesErrorStatus, MAX_FILE_BYTES } from "../shared/index.ts";
 import type { FilesService } from "./service.ts";
 
 type TenantCtx = { Variables: TenantVariables & ViewerVariables };

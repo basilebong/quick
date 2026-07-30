@@ -12,7 +12,7 @@ export {
   createAuditRecorder,
 } from "./audit/recorder.ts";
 export { isAllowedEmail, parseAllowedEmails } from "./auth/allowlist.ts";
-export { type Auth, createAuth, type CreateAuthOptions } from "./auth/index.ts";
+export { type Auth, type CreateAuthOptions, createAuth } from "./auth/index.ts";
 export { createDb, type Db } from "./db/index.ts";
 export { escapeHtml, googleAccessDeniedPage, linkAccessPage, notFoundAppPage } from "./html.ts";
 export { createIdempotency, IDEMPOTENCY_SKIP_HEADER } from "./idempotency/middleware.ts";
@@ -27,7 +27,6 @@ export {
   type Registrar,
   runMcpRequest,
 } from "./mcp/index.ts";
-export { clientIpFromXff } from "./net.ts";
 export { createOriginCheck } from "./middleware/origin-check.ts";
 export { createRequireOwner } from "./middleware/owner.ts";
 export { createRequestLogger, redactLogLine } from "./middleware/request-logger.ts";
@@ -41,6 +40,7 @@ export {
   type ShareGateDeps,
 } from "./middleware/share-gate.ts";
 export { createTlsCheck } from "./middleware/tls-check.ts";
+export { clientIpFromXff } from "./net.ts";
 export type {
   AccessEntry,
   AccessEvent,

@@ -7,7 +7,7 @@ import { SLOT_MAX_BYTES } from "../shared/index.ts";
 import type { OwnerVariables } from "./owner-auth.ts";
 import { createHostingService } from "./service.ts";
 import { createSlotsAdminRoutes, createSlotsAppRoutes } from "./slot-routes.ts";
-import { type SlotsService, createSlotsService } from "./slots-service.ts";
+import { createSlotsService, type SlotsService } from "./slots-service.ts";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0x02]);
 const NOT_IMAGE = new TextEncoder().encode("definitely not an image");
