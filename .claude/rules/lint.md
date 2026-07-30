@@ -41,7 +41,7 @@ hook runs `commitlint` against the commit message — see
 ## AST checks (`pnpm check:source`)
 
 Implemented in `scripts/check-source.ts` (Bun + TypeScript compiler API).
-Two rules:
+One rule:
 
 ### `no-bare-as`
 
@@ -65,24 +65,13 @@ Narrow with type guards, ts-pattern, or schema validation (Valibot / Zod).
 If you genuinely need an assertion (FFI-style boundary), wrap it in a
 single named parser/guard so the cast is in one place.
 
-### `sorted-exports`
-
-Top-level `export { a, b, c }` blocks must be alphabetically sorted by
-exported name (not local name). `export * from` and default exports are
-unaffected.
-
-Wrong:
-```ts
-export { z, a, m };
-```
-
-Right:
-```ts
-export { a, m, z };
-```
-
-This applies only to re-export statements — `export const`, `export function`,
-etc. are not sorted (they're declarations, ordered for readability).
+Named-export sorting (`export { a, b, c }`) used to be a custom
+`sorted-exports` AST rule here. Biome 2's `assist/source/organizeImports`
+now sorts named exports natively (fixable via `pnpm lint:fix`), and its
+ordering isn't a plain `localeCompare`/codepoint sort we could cheaply
+replicate — running both meant the two tools fought each other. The
+custom rule was removed; Biome is the single source of truth for export
+ordering now.
 
 ## Commit messages (`commit-msg` hook)
 

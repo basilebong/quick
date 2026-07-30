@@ -1,10 +1,10 @@
-import { escapeHtml } from "@quick/core/server";
 import type { TenantVariables, ViewerVariables } from "@quick/core/server";
+import { escapeHtml } from "@quick/core/server";
 import { type AppId, parseAppId, parseUserId } from "@quick/core/shared";
 import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { match } from "ts-pattern";
-import { SLOT_MAX_BYTES, hostingErrorStatus } from "../shared/index.ts";
+import { hostingErrorStatus, SLOT_MAX_BYTES } from "../shared/index.ts";
 import type { OwnerVariables } from "./owner-auth.ts";
 import type { SlotsService } from "./slots-service.ts";
 

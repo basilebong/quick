@@ -6,7 +6,7 @@ export {
 } from "./deploy.ts";
 export { createOwnerAuth, type OwnerUser, type OwnerVariables } from "./owner-auth.ts";
 export { createHostingRoutes, type HostingRoutes } from "./routes.ts";
-export { accessLog, apps, appSlots, deployments, shareLinks } from "./schema.ts";
+export { accessLog, appSlots, apps, deployments, shareLinks } from "./schema.ts";
 export { createHostingService, type HostingService } from "./service.ts";
 export {
   createSlotsAdminRoutes,

@@ -1,6 +1,6 @@
 import { ImageIcon, UploadSimpleIcon } from "@phosphor-icons/react";
-import { SLOT_MAX_BYTES, type SlotView } from "@quick/app-hosting/shared";
 import type { AppSummary } from "@quick/app-hosting/shared";
+import { SLOT_MAX_BYTES, type SlotView } from "@quick/app-hosting/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { toast } from "sonner";

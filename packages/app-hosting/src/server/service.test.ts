@@ -6,13 +6,13 @@ import type { Db } from "@quick/core/server";
 import { users } from "@quick/core/server/schema";
 import { createTestDb } from "@quick/core/server/test";
 import {
-  type UserId,
   parseAppId,
   parseDeploymentId,
   parseShareLinkId,
   parseUserId,
+  type UserId,
 } from "@quick/core/shared";
-import { type HostingService, createHostingService } from "./service.ts";
+import { createHostingService, type HostingService } from "./service.ts";
 
 let db: Db;
 let appsDir: string;

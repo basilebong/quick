@@ -53,7 +53,10 @@ const LinkStatusBadge = ({ link }: { link: ShareLinkView }): React.ReactElement 
 const RevokeLinkButton = ({
   app,
   link,
-}: { app: AppSummary; link: ShareLinkView }): React.ReactElement => {
+}: {
+  app: AppSummary;
+  link: ShareLinkView;
+}): React.ReactElement => {
   const queryClient = useQueryClient();
   const revoke = useMutation({
     mutationFn: () => revokeLink(app.id, link.id),

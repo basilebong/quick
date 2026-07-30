@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import type { Db } from "../db/index.ts";
 import { withTestAuth } from "../test/index.ts";
-import { IDEMPOTENCY_SKIP_HEADER, createIdempotency } from "./middleware.ts";
+import { createIdempotency, IDEMPOTENCY_SKIP_HEADER } from "./middleware.ts";
 
 const buildApp = (db: Db, userId: string) => {
   let creates = 0;

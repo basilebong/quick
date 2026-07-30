@@ -6,14 +6,14 @@ import { users } from "@quick/core/server/schema";
 import {
   type AppId,
   type DeploymentId,
-  type Result,
-  type ShareLinkId,
-  type UserId,
   err,
   isUsableSlug,
   ok,
   parseShareLinkId,
   parseUserId,
+  type Result,
+  type ShareLinkId,
+  type UserId,
 } from "@quick/core/shared";
 import { match } from "ts-pattern";
 import { ulid } from "ulid";

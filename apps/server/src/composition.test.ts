@@ -7,15 +7,15 @@ import { createHostingService, createSlotsService } from "@quick/app-hosting/ser
 import { createStoreService } from "@quick/app-store/server";
 import {
   type Auth,
-  type Db,
   createAuditRecorder,
+  type Db,
   isAllowedEmail,
   parseAllowedEmails,
 } from "@quick/core/server";
 import { eq } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
 import { withTestAuth } from "@quick/core/server/test";
-import { type UserId, parseAppId, parseUserId } from "@quick/core/shared";
+import { parseAppId, parseUserId, type UserId } from "@quick/core/shared";
 import { createApp } from "./composition.ts";
 
 const OWNER_EMAIL = "owner@example.com";

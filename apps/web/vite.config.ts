@@ -45,12 +45,6 @@ export default defineConfig({
       },
     },
   },
-  optimizeDeps: {
-    // Vite hardcodes the dep pre-bundler's esbuild target to ESBUILD_MODULES_TARGET
-    // (includes safari14); esbuild >=0.26 refuses to lower for-of destructuring to
-    // safari14 and floods `vite dev` with errors. Match our build target instead.
-    esbuildOptions: { target: buildTarget },
-  },
   plugins: [
     react(),
     tailwindcss(),

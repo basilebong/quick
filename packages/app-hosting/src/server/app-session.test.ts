@@ -5,9 +5,9 @@ import { join } from "node:path";
 import type { Db } from "@quick/core/server";
 import { users } from "@quick/core/server/schema";
 import { createTestDb } from "@quick/core/server/test";
-import { type AppId, type UserId, parseAppId, parseUserId } from "@quick/core/shared";
+import { type AppId, parseAppId, parseUserId, type UserId } from "@quick/core/shared";
 import { appSessionCodes, appSessions } from "./schema.ts";
-import { type HostingService, createHostingService } from "./service.ts";
+import { createHostingService, type HostingService } from "./service.ts";
 import { hashToken } from "./tokens.ts";
 
 let db: Db;

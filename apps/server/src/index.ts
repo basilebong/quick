@@ -11,7 +11,7 @@ import {
 } from "@quick/core/server";
 import { eq } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
-import { type UserId, parseRuntimeEnv } from "@quick/core/shared";
+import { parseRuntimeEnv, type UserId } from "@quick/core/shared";
 import { createApp } from "./composition.ts";
 
 const env = parseRuntimeEnv(process.env);

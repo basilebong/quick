@@ -7,8 +7,8 @@ import {
   CreateAppInputSchema,
   CreateLinkInputSchema,
   type HostingError,
-  UpdateAppInputSchema,
   hostingErrorStatus,
+  UpdateAppInputSchema,
 } from "../shared/index.ts";
 import type { OwnerVariables } from "./owner-auth.ts";
 import type { HostingService } from "./service.ts";

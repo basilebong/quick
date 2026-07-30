@@ -4,7 +4,7 @@ import { eq } from "@quick/core/server/drizzle";
 import { createTestDb } from "@quick/core/server/test";
 import { type AppId, type AppRecordId, parseAppId } from "@quick/core/shared";
 import { appRecords } from "./schema.ts";
-import { type StoreService, createStoreService } from "./service.ts";
+import { createStoreService, type StoreService } from "./service.ts";
 
 let db: Db;
 let store: StoreService;
