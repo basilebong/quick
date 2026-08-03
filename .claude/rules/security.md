@@ -22,6 +22,19 @@ HARD rules for Quick, on top of the constitution.
 - Never log a raw token or a `?t=` query value. The link redeem path strips `?t=`
   via a clean-URL redirect with `Referrer-Policy: no-referrer`.
 
+## Viewer data in the access log
+- The access log answers "who viewed my app" and nothing else. It stores when /
+  event / mode / who (`userId` in google mode, `linkId` in link mode) / path.
+  NEVER add a viewer IP or User-Agent column back: `userId` and `linkId` already
+  identify the viewer, so both are surplus under data minimization (GDPR Art.
+  5(1)(c)). A regression test asserts the share-gate hands the resolver no `ip`
+  or `userAgent`.
+- Entries are bounded in time, not kept until the app is deleted:
+  `createAccessLogRetention` purges rows older than
+  `QUICK_ACCESS_LOG_RETENTION_DAYS` (default 30) on boot and every 12h. Any new
+  deployment path that enumerates the app's environment must pass that variable
+  through, or the knob silently does nothing.
+
 ## Slugs
 - Slug validity + the reserved set live in ONE place: `@quick/core/shared`
   (`reserved-slugs.ts`). The create API, the CLI, and host resolution all use it.
