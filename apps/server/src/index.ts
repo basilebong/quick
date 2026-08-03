@@ -96,8 +96,8 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
   console.info(`Quick server received ${signal}, shutting down`);
-  await accessLogRetention.close();
   await server.stop();
+  await accessLogRetention.close();
   process.exit(0);
 };
 
