@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from "bun:test";
+import { describe, expect, jest, spyOn, test } from "bun:test";
 import { createRetentionSweeper } from "./retention.ts";
 
 // Under fake timers the interval callback runs synchronously, so a sweep's promise
@@ -157,6 +157,7 @@ describe("retention sweeper", () => {
 
   test("a failing sweep is contained: the sweeper keeps ticking", async () => {
     jest.useFakeTimers();
+    const logged = spyOn(console, "error").mockImplementation(() => {});
     let calls = 0;
     const intervalMs = 60_000;
     const sweeper = createRetentionSweeper({
@@ -177,5 +178,7 @@ describe("retention sweeper", () => {
     jest.useRealTimers();
 
     expect(calls).toBe(2);
+    expect(logged).toHaveBeenCalledTimes(2);
+    logged.mockRestore();
   });
 });
