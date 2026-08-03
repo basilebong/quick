@@ -29,11 +29,23 @@ HARD rules for Quick, on top of the constitution.
   identify the viewer, so both are surplus under data minimization (GDPR Art.
   5(1)(c)). A regression test asserts the share-gate hands the resolver no `ip`
   or `userAgent`.
-- Entries are bounded in time, not kept until the app is deleted:
-  `createAccessLogRetention` purges rows older than
+- Entries are bounded in time, not kept until the app is deleted: a
+  `createRetentionSweeper` purges rows older than
   `QUICK_ACCESS_LOG_RETENTION_DAYS` (default 30) on boot and every 12h. Any new
   deployment path that enumerates the app's environment must pass that variable
   through, or the knob silently does nothing.
+
+## Viewer data in Better Auth sessions
+- `sessions` rows carry `ip_address` + `user_agent`, written by Better Auth for
+  every apex sign-in — including a google-mode VIEWER, not just an owner. Better
+  Auth only drops an expired row when that same browser returns and presents the
+  dead cookie (`api/routes/session.mjs`), and ships no server-side reaper, so a
+  viewer who never comes back would leave their IP behind forever. A second
+  `createRetentionSweeper` deletes rows past `expiresAt` on the same 12h tick;
+  keep it wired, or unbounded viewer IP retention comes back.
+- Do NOT "fix" this with `advanced.ipAddress.disableIpTracking`: Better Auth's
+  rate limiter skips its config entirely when it cannot resolve an IP
+  (`api/rate-limiter/index.mjs`), so that trade costs auth rate limiting.
 
 ## Slugs
 - Slug validity + the reserved set live in ONE place: `@quick/core/shared`

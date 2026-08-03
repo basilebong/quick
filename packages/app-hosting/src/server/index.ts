@@ -1,9 +1,4 @@
 export {
-  type AccessLogRetention,
-  type AccessLogRetentionOptions,
-  createAccessLogRetention,
-} from "./access-log-retention.ts";
-export {
   DEPLOY_MAX_FILES,
   type DeployFile,
   isSafeDeployPath,

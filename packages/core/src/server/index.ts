@@ -13,6 +13,7 @@ export {
 } from "./audit/recorder.ts";
 export { isAllowedEmail, parseAllowedEmails } from "./auth/allowlist.ts";
 export { type Auth, type CreateAuthOptions, createAuth } from "./auth/index.ts";
+export { purgeExpiredSessions } from "./auth/sessions.ts";
 export { createDb, type Db } from "./db/index.ts";
 export { escapeHtml, googleAccessDeniedPage, linkAccessPage, notFoundAppPage } from "./html.ts";
 export { createIdempotency, IDEMPOTENCY_SKIP_HEADER } from "./idempotency/middleware.ts";
@@ -40,6 +41,11 @@ export {
   type ShareGateDeps,
 } from "./middleware/share-gate.ts";
 export { createTlsCheck } from "./middleware/tls-check.ts";
+export {
+  createRetentionSweeper,
+  type RetentionSweeper,
+  type RetentionSweeperOptions,
+} from "./retention.ts";
 export type {
   AccessEntry,
   AccessEvent,

@@ -1,17 +1,15 @@
 import { dirname, resolve } from "node:path";
 import { createFilesService } from "@quick/app-files/server";
-import {
-  createAccessLogRetention,
-  createHostingService,
-  createSlotsService,
-} from "@quick/app-hosting/server";
+import { createHostingService, createSlotsService } from "@quick/app-hosting/server";
 import { createStoreService } from "@quick/app-store/server";
 import {
   createAuditRecorder,
   createAuth,
   createDb,
+  createRetentionSweeper,
   isAllowedEmail,
   parseAllowedEmails,
+  purgeExpiredSessions,
 } from "@quick/core/server";
 import { eq } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
@@ -85,11 +83,19 @@ const app = createApp({
 
 const server = Bun.serve({ port: env.PORT, fetch: app.fetch });
 
-const accessLogRetention = createAccessLogRetention({
-  service: hosting,
-  ttlMs: env.QUICK_ACCESS_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-});
-accessLogRetention.start();
+const retentionSweepers = [
+  createRetentionSweeper({
+    label: "access-log entries",
+    ttlMs: env.QUICK_ACCESS_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    sweep: (cutoff) => hosting.purgeAccessLogOlderThan(cutoff),
+  }),
+  createRetentionSweeper({
+    label: "expired sessions",
+    ttlMs: 0,
+    sweep: (cutoff) => purgeExpiredSessions(db, cutoff),
+  }),
+];
+for (const sweeper of retentionSweepers) sweeper.start();
 
 let shuttingDown = false;
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
@@ -97,7 +103,7 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   shuttingDown = true;
   console.info(`Quick server received ${signal}, shutting down`);
   await server.stop();
-  await accessLogRetention.close();
+  await Promise.all(retentionSweepers.map((sweeper) => sweeper.close()));
   process.exit(0);
 };
 

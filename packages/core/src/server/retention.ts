@@ -1,30 +1,28 @@
-import type { HostingService } from "./service.ts";
-
 const DEFAULT_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
-export type AccessLogPurger = Pick<HostingService, "purgeAccessLogOlderThan">;
-
-export type AccessLogRetentionOptions = {
-  service: AccessLogPurger;
+export type RetentionSweeperOptions = {
+  label: string;
   ttlMs: number;
+  sweep: (cutoff: Date) => Promise<number>;
   intervalMs?: number;
 };
 
-export type AccessLogRetention = {
+export type RetentionSweeper = {
   start(): void;
   close(): Promise<void>;
 };
 
-export const createAccessLogRetention = (opts: AccessLogRetentionOptions): AccessLogRetention => {
+export const createRetentionSweeper = (opts: RetentionSweeperOptions): RetentionSweeper => {
   const intervalMs = opts.intervalMs ?? DEFAULT_INTERVAL_MS;
   let timer: ReturnType<typeof setInterval> | null = null;
   let inFlight: Promise<void> | null = null;
 
   const purge = async (): Promise<void> => {
     try {
-      await opts.service.purgeAccessLogOlderThan(new Date(Date.now() - opts.ttlMs));
+      const purged = await opts.sweep(new Date(Date.now() - opts.ttlMs));
+      if (purged > 0) console.info(`retention: purged ${purged} ${opts.label}`);
     } catch (error) {
-      console.error("access-log retention sweep failed", error);
+      console.error(`retention sweep failed: ${opts.label}`, error);
     }
   };
 
