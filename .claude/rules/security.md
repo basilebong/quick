@@ -59,9 +59,23 @@ one advisory is deferred:
   wasn't consented for. The escalation requires **more than one** configured audience.
   Quick's OAuth server sets a single MCP resource (`validAudiences: [mcpResource]`),
   so there is no second audience to escalate to — **not exploitable in this config**.
-  The fix ships only in the `1.7.0` prerelease line, and upgrading to 1.7 is a breaking
-  migration (`@better-auth/mcp`, `/oauth2/*` endpoints, EOPT-incompatible RC types).
-  **Remove it from both gates when we move to Better Auth 1.7 GA** (tracked in #13). The companion HIGH advisory
+  The fix shipped in the `1.7.0` GA release (2026-08-18). **Attempted the upgrade to
+  1.7.1 on 2026-08-27 and reverted it**: `@better-auth/oauth-provider`/`@better-auth/mcp`
+  1.7.1's own generated types for the `oauth2Authorize` endpoint (OpenAPI metadata,
+  `items?: undefined` fields) do not satisfy `BetterAuthPlugin` under this repo's
+  non-negotiable `exactOptionalPropertyTypes: true` — confirmed by unpacking the
+  1.7.2 tarball directly (`npm pack @better-auth/oauth-provider@1.7.2`), which ships
+  the identical broken shape, so the bump is not yet fixed upstream. This is a known,
+  recurring category of upstream defect (see better-auth/better-auth#6127, #4804,
+  #8855 for the same `exactOptionalPropertyTypes` incompatibility in other plugins),
+  not something fixable from Quick's application code, and CLAUDE.md rule 14 forbids
+  suppressing it with a cast or `@ts-expect-error` to force the migration through.
+  The migration also requires a schema regen (`bun run auth:generate` /
+  `bun run db:generate`) and touches `better-auth`'s `internalAdapter.createUser`
+  signature (now `(issuer, accountId)`-scoped) — sized but not attempted further once
+  the type-level blocker was hit. **Re-attempt when a `@better-auth/oauth-provider`
+  patch ships that fixes the `oauth2Authorize` OpenAPI parameter types under
+  `exactOptionalPropertyTypes`** (tracked in #13). The companion HIGH advisory
   (stored XSS, GHSA-86j7-9j95-vpqj) is NOT ignored — it is fixed by pinning
   `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23.
 
@@ -84,8 +98,10 @@ comments, so each override is justified here:
   fixed upstream. Verified still load-bearing: removing the override resolves
   `esbuild@0.18.20` and the audit fails. **Remove when `drizzle-kit` drops
   `@esbuild-kit/esm-loader`.**
-- **`brace-expansion@<5.0.8` → `>=5.0.8`** (GHSA-mh99-v99m-4gvg / CVE-2026-14257,
-  unbounded expansion length → uncatchable OOM). Reached at BUILD time only, via
+- **`brace-expansion@<5.0.9` → `>=5.0.9`** (GHSA-mh99-v99m-4gvg / CVE-2026-14257,
+  unbounded expansion length → uncatchable OOM, plus GHSA-rgw5-rvv9-x895, a follow-up
+  DoS via unbounded intermediate arrays that bypassed the first fix — `5.0.8` alone is
+  no longer sufficient, hence the bumped floor). Reached at BUILD time only, via
   `vite-plugin-pwa` → `workbox-build` → `@trickfilm400/rollup-plugin-off-main-thread`
   → `ejs` → `jake` → `filelist` → `minimatch@5`, which pins `brace-expansion: ^2.0.1`.
   `filelist@2` moved to `minimatch@10` (fixed range), but `ejs@3.1.10` still pulls

@@ -49,7 +49,7 @@ export const createFilesAppRoutes = (deps: { service: FilesService }) =>
     .get("/:filepath{.+}", async (c) => {
       const r = await deps.service.get(appIdOf(c), c.req.param("filepath"));
       if (r.kind === "err") return c.json(r.error, filesErrorStatus(r.error));
-      return new Response(r.value.bytes, {
+      return new Response(new Uint8Array(r.value.bytes), {
         headers: serveHeaders(r.value.meta.contentType, r.value.meta.checksum),
       });
     })

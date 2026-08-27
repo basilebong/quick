@@ -16,7 +16,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "@quick/core": "workspace:*",
-    "hono": "4.12.32",
+    "hono": "4.13.4",
     "ts-pattern": "5.9.0",
     "ulid": "3.0.2",
     "valibot": "1.4.2",
