@@ -46,7 +46,10 @@ export const createSlotsAppRoutes = (deps: { service: SlotsService }) =>
       return match(read)
         .with(
           { kind: "filled" },
-          (r) => new Response(r.bytes, { headers: filledHeaders(r.contentType, r.checksum) }),
+          (r) =>
+            new Response(new Uint8Array(r.bytes), {
+              headers: filledHeaders(r.contentType, r.checksum),
+            }),
         )
         .with(
           { kind: "placeholder" },
@@ -85,7 +88,9 @@ export const createSlotsAdminRoutes = (deps: { service: SlotsService }) =>
         c.req.param("key"),
       );
       return read.kind === "filled"
-        ? new Response(read.bytes, { headers: filledHeaders(read.contentType, read.checksum) })
+        ? new Response(new Uint8Array(read.bytes), {
+            headers: filledHeaders(read.contentType, read.checksum),
+          })
         : c.notFound();
     })
     .delete("/:key", async (c) => {
