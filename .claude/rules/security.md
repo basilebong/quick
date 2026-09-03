@@ -73,11 +73,21 @@ one advisory is deferred:
   The migration also requires a schema regen (`bun run auth:generate` /
   `bun run db:generate`) and touches `better-auth`'s `internalAdapter.createUser`
   signature (now `(issuer, accountId)`-scoped) — sized but not attempted further once
-  the type-level blocker was hit. **Re-attempt when a `@better-auth/oauth-provider`
-  patch ships that fixes the `oauth2Authorize` OpenAPI parameter types under
-  `exactOptionalPropertyTypes`** (tracked in #13). The companion HIGH advisory
-  (stored XSS, GHSA-86j7-9j95-vpqj) is NOT ignored — it is fixed by pinning
-  `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23.
+  the type-level blocker was hit. **Re-attempted on 2026-09-03 directly against the
+  installed `1.7.2` package (not just its tarball)**: `tsc -b` still fails with the
+  identical `oauth2Authorize`/`OpenAPIParameter.schema.items` incompatibility against
+  `exactOptionalPropertyTypes: true` — confirmed unfixed upstream, not a stale-tarball
+  artifact. Also found a new blocker on this pass: `1.7.x` split `mcpHandler` out of
+  `@better-auth/oauth-provider` entirely into a separate `@better-auth/mcp` package
+  (`packages/core/src/server/mcp/auth.ts` now fails with `Module
+  "@better-auth/oauth-provider" has no exported member 'mcpHandler'`), so the
+  migration also needs a new direct dependency and an import-path change in
+  `createMcpAuthGuard`'s call site, on top of the still-unresolved type blocker.
+  **Re-attempt when a `@better-auth/oauth-provider` patch ships that fixes the
+  `oauth2Authorize` OpenAPI parameter types under `exactOptionalPropertyTypes`**
+  (tracked in #13). The companion HIGH advisory (stored XSS, GHSA-86j7-9j95-vpqj) is
+  NOT ignored — it is fixed by pinning `better-auth`/`@better-auth/oauth-provider`
+  ≥ 1.6.23.
 
 Do not add further entries without the same three things here: the ID, why we are not
 exposed, and the condition that removes it. Never lower `--audit-level` to dodge an
