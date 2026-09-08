@@ -39,7 +39,8 @@ jobs:
       # single MCP resource (validAudiences: [mcpResource]), so it is not exploitable here.
       # Fixed upstream in 1.7.0 GA, but 1.7.1/1.7.2's own types don't satisfy
       # BetterAuthPlugin under this repo's exactOptionalPropertyTypes — remove the ignore
-      # once a patch fixes that (attempted and reverted 2026-08-27).
+      # once a patch fixes that (attempted and reverted 2026-08-27; re-verified against the
+      # installed 1.7.2 package, still broken, on 2026-09-03).
       # See .claude/rules/security.md § "Deferred advisories" and issue #13.
       - name: Audit known vulnerabilities (fail on moderate+)
         run: pnpm audit --audit-level=moderate
