@@ -56,7 +56,7 @@ const AppCard = ({ app }: { app: AppSummary }): React.ReactElement => {
   const live = app.currentDeploymentId !== null;
 
   return (
-    <Card className="group hover:-translate-y-0.5 gap-0 overflow-hidden p-0 transition-all duration-200 hover:border-foreground/15 hover:shadow-md">
+    <Card className="group gap-0 overflow-hidden p-0 transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-md">
       <AppIdentityLink app={app} />
       <div className="flex items-center justify-between gap-2 border-border/70 border-t bg-muted/30 px-4 py-2.5">
         <span className="inline-flex items-center gap-1.5">
