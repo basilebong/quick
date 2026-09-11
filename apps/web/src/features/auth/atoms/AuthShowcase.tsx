@@ -38,7 +38,7 @@ export const AuthShowcase = (): React.ReactElement => (
       <div className="relative inline-grid">
         <div
           aria-hidden
-          className="-inset-5 pointer-events-none absolute rounded-[2rem] bg-sky-400/15 blur-2xl"
+          className="pointer-events-none absolute -inset-5 rounded-[2rem] bg-sky-400/15 blur-2xl"
         />
         <div className="relative grid size-16 place-items-center rounded-3xl bg-white/[0.06] shadow-2xl shadow-black/40 ring-1 ring-white/10 ring-inset backdrop-blur-sm">
           <LightningIcon size={34} weight="fill" className="text-white" />

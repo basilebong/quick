@@ -83,11 +83,26 @@ one advisory is deferred:
   "@better-auth/oauth-provider" has no exported member 'mcpHandler'`), so the
   migration also needs a new direct dependency and an import-path change in
   `createMcpAuthGuard`'s call site, on top of the still-unresolved type blocker.
-  **Re-attempt when a `@better-auth/oauth-provider` patch ships that fixes the
-  `oauth2Authorize` OpenAPI parameter types under `exactOptionalPropertyTypes`**
-  (tracked in #13). The companion HIGH advisory (stored XSS, GHSA-86j7-9j95-vpqj) is
-  NOT ignored — it is fixed by pinning `better-auth`/`@better-auth/oauth-provider`
-  ≥ 1.6.23.
+  **Re-attempted on 2026-09-10 against the installed `1.7.3` package** (`better-auth`,
+  `@better-auth/oauth-provider`, and the new `@better-auth/mcp` dependency, with
+  `createMcpAuthGuard` switched to `@better-auth/mcp`'s `createMcpProtectedRequestHandler`,
+  whose flattened `{ issuer, audience, jwksUrl }` options are a drop-in shape match):
+  `tsc -b` still fails on the identical `oauth2Authorize`/`OpenAPIParameter.schema.items`
+  incompatibility under `exactOptionalPropertyTypes: true` — confirmed unfixed upstream
+  as of 1.7.3. This pass also surfaced a second, independent break: `better-auth@1.7.3`
+  changes an internal adapter call signature our test helper depends on, failing three
+  suites (`packages/core/src/server/assistants/routes.test.ts`,
+  `packages/core/src/server/assistants/service.test.ts`,
+  `packages/core/src/server/auth/auth.test.ts`,
+  `packages/core/src/server/middleware/session.test.ts`) with `Expected 2 arguments,
+  but got 1` — consistent with the `internalAdapter.createUser` `(issuer, accountId)`
+  re-scoping already noted above, now hitting `packages/core/src/server/test/` directly
+  instead of only being a theoretical size estimate. Reverted the attempt; nothing here
+  is fixable from application code. **Re-attempt when a `@better-auth/oauth-provider`
+  patch ships that fixes the `oauth2Authorize` OpenAPI parameter types under
+  `exactOptionalPropertyTypes`** (tracked in #13). The companion HIGH advisory (stored
+  XSS, GHSA-86j7-9j95-vpqj) is NOT ignored — it is fixed by pinning
+  `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23.
 
 Do not add further entries without the same three things here: the ID, why we are not
 exposed, and the condition that removes it. Never lower `--audit-level` to dodge an

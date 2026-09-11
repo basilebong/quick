@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
-import ts from "typescript";
+import type { TSAsExpression, TSTypeAssertion } from "@oxc-project/types";
+import { parseSync, Visitor } from "oxc-parser";
 
 type Violation = {
   file: string;
@@ -25,51 +26,60 @@ const collectFiles = (): string[] => {
   return out;
 };
 
-const isAsConst = (typeNode: ts.TypeNode): boolean =>
-  ts.isTypeReferenceNode(typeNode) &&
-  ts.isIdentifier(typeNode.typeName) &&
-  typeNode.typeName.text === "const";
+const isAsConst = (typeAnnotation: TSAsExpression["typeAnnotation"]): boolean =>
+  typeAnnotation.type === "TSTypeReference" &&
+  typeAnnotation.typeName.type === "Identifier" &&
+  typeAnnotation.typeName.name === "const";
+
+// oxc reports byte offsets. Positions land on ASCII syntax (`as`, `<`), so a
+// byte offset is always also a valid split point between UTF-8 characters.
+const lineAndColumnAt = (buf: Buffer, byteOffset: number): { line: number; col: number } => {
+  let line = 1;
+  let lineStart = 0;
+  for (let i = 0; i < byteOffset; i++) {
+    if (buf[i] === 0x0a) {
+      line++;
+      lineStart = i + 1;
+    }
+  }
+  const col = buf.subarray(lineStart, byteOffset).toString("utf8").length + 1;
+  return { line, col };
+};
 
 const checkFile = (file: string): Violation[] => {
-  const src = readFileSync(file, "utf8");
-  const sf = ts.createSourceFile(
-    file,
-    src,
-    ts.ScriptTarget.Latest,
-    true,
-    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
+  const buf = readFileSync(file);
+  const result = parseSync(file, buf.toString("utf8"), { sourceType: "module" });
+
+  if (result.errors.length > 0) {
+    const messages = result.errors.map((e) => e.message).join("; ");
+    throw new Error(`${file}: failed to parse for check-source: ${messages}`);
+  }
 
   const violations: Violation[] = [];
-  const at = (node: ts.Node) => {
-    const { line, character } = sf.getLineAndCharacterOfPosition(node.getStart());
-    return { line: line + 1, col: character + 1 };
-  };
 
-  const visit = (node: ts.Node): void => {
-    if (ts.isAsExpression(node) && !isAsConst(node.type)) {
-      const pos = at(node.type);
+  const visitor = new Visitor({
+    TSAsExpression(node: TSAsExpression) {
+      if (isAsConst(node.typeAnnotation)) return;
+      const pos = lineAndColumnAt(buf, node.typeAnnotation.start);
       violations.push({
         file,
         ...pos,
         rule: "no-bare-as",
         message: "'as' type assertion forbidden; only 'as const' is allowed",
       });
-    }
-
-    if (ts.isTypeAssertionExpression(node)) {
-      const pos = at(node);
+    },
+    TSTypeAssertion(node: TSTypeAssertion) {
+      const pos = lineAndColumnAt(buf, node.start);
       violations.push({
         file,
         ...pos,
         rule: "no-bare-as",
         message: "angle-bracket type assertion forbidden",
       });
-    }
+    },
+  });
+  visitor.visit(result.program);
 
-    ts.forEachChild(node, visit);
-  };
-  visit(sf);
   return violations;
 };
 
