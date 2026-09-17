@@ -16,10 +16,10 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "@quick/core": "workspace:*",
-    "hono": "4.13.7",
+    "hono": "4.13.8",
     "ts-pattern": "5.9.0",
     "ulid": "3.0.2",
-    "valibot": "1.4.2",
-    "zod": "4.5.4"
+    "valibot": "1.5.0",
+    "zod": "4.6.5"
   }
 }

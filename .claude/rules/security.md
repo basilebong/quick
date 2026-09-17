@@ -98,11 +98,30 @@ one advisory is deferred:
   but got 1` — consistent with the `internalAdapter.createUser` `(issuer, accountId)`
   re-scoping already noted above, now hitting `packages/core/src/server/test/` directly
   instead of only being a theoretical size estimate. Reverted the attempt; nothing here
-  is fixable from application code. **Re-attempt when a `@better-auth/oauth-provider`
+  is fixable from application code. **Re-attempted on 2026-09-17 against the installed
+  `1.7.5` package** (latest at the time, released 2026-09-14): `tsc -b` still fails on
+  the identical `oauth2Authorize`/`OpenAPIParameter.schema.items` incompatibility under
+  `exactOptionalPropertyTypes: true` — confirmed unfixed upstream as of 1.7.5, four
+  patch releases after the 1.7.3 check. The `mcpHandler` → `@better-auth/mcp` split and
+  the `internalAdapter` call-signature break both still reproduce exactly as in the
+  1.7.3 pass, now also failing `packages/app-hosting/src/server/slot-routes.test.ts`,
+  `packages/app-hosting/src/server/slots-service.test.ts`,
+  `packages/app-hosting/src/server/sso.test.ts`,
+  `packages/app-hosting/src/tools/index.test.ts`, and
+  `apps/server/src/composition.test.ts` in addition to the four suites already listed —
+  the shared test helper's exposure has grown with the codebase, not shrunk. Reverted
+  the attempt again. Separately verified the still-maintained `1.6.x` line is not
+  abandoned (`1.6.33` shipped the same day as `1.7.5`) and carries no breaking API
+  changes: bumped `better-auth`/`@better-auth/oauth-provider` to `1.6.33` (from
+  `1.6.25`) with `tsc -b` and all 231 `bun test` cases green, no code changes needed.
+  That bump ships in this PR; it is routine currency, not a fix for this advisory —
+  the vulnerable `oauth2Authorize` audience-scoping code is unchanged between 1.6.25
+  and 1.6.33, and the escalation still requires a second configured audience, which
+  Quick's OAuth server does not have. **Re-attempt when a `@better-auth/oauth-provider`
   patch ships that fixes the `oauth2Authorize` OpenAPI parameter types under
   `exactOptionalPropertyTypes`** (tracked in #13). The companion HIGH advisory (stored
   XSS, GHSA-86j7-9j95-vpqj) is NOT ignored — it is fixed by pinning
-  `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23.
+  `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23 (now at 1.6.33).
 
 Do not add further entries without the same three things here: the ID, why we are not
 exposed, and the condition that removes it. Never lower `--audit-level` to dodge an
@@ -121,7 +140,9 @@ comments, so each override is justified here:
   pins `esbuild: ~0.18.20`. `@esbuild-kit/*` is deprecated and unmaintained (its
   successor is `tsx`, which `drizzle-kit` also depends on), so the pin will never be
   fixed upstream. Verified still load-bearing: removing the override resolves
-  `esbuild@0.18.20` and the audit fails. **Remove when `drizzle-kit` drops
+  `esbuild@0.18.20` and the audit fails. Re-verified 2026-09-17 against
+  `drizzle-kit@0.31.10` (still latest): its published `dependencies` still list
+  `@esbuild-kit/esm-loader: ^2.5.5`, unchanged. **Remove when `drizzle-kit` drops
   `@esbuild-kit/esm-loader`.**
 - **`brace-expansion@<5.0.9` → `>=5.0.9`** (GHSA-mh99-v99m-4gvg / CVE-2026-14257,
   unbounded expansion length → uncatchable OOM, plus GHSA-rgw5-rvv9-x895, a follow-up
@@ -132,9 +153,14 @@ comments, so each override is justified here:
   `filelist@2` moved to `minimatch@10` (fixed range), but `ejs@3.1.10` still pulls
   `jake@10`. Note `ejs`'s library code never actually requires `jake` — verified by
   grep, it is a packaging artifact — so nothing on our build path calls the vulnerable
-  expander. The override is defence-in-depth to keep the audit gate honest. **Remove
-  when `workbox-build` ships a `rollup-plugin-off-main-thread` that drops `ejs`, or
-  when `ejs` moves to `jake@12`.**
+  expander. The override is defence-in-depth to keep the audit gate honest. Re-verified
+  2026-09-17 against `workbox-build@7.4.1` (still latest): still depends on
+  `@trickfilm400/rollup-plugin-off-main-thread@^3.0.0-pre1`, which still pins
+  `ejs: ^3.1.10`. `ejs` itself has moved on (latest is now `6.0.1`, with zero
+  dependencies — `jake` is gone), but that range can't reach it: `3.1.10` remains the
+  newest release satisfying `^3.1.10`, and no `ejs@3.1.x` patch after it exists to drop
+  `jake` in place. **Remove when `workbox-build` ships a `rollup-plugin-off-main-thread`
+  that drops `ejs`, or when its `ejs` dependency range can reach `6.x`.**
 
 Overrides are not a substitute for a real upgrade. Every entry above must be re-checked
 on each dependency audit and dropped as soon as the upstream chain is fixed.
