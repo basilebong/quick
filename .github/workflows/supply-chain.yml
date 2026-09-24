@@ -37,11 +37,11 @@ jobs:
       # GHSA-p2fr-6hmx-4528 (@better-auth/oauth-provider, CVSS 3.1) — cross-audience
       # access-token escalation that requires >1 configured audience. Quick configures a
       # single MCP resource (validAudiences: [mcpResource]), so it is not exploitable here.
-      # Fixed upstream in 1.7.0 GA, but 1.7.1/1.7.2's own types don't satisfy
+      # Fixed upstream in 1.7.0 GA, but every 1.7.x release through 1.7.5 (latest as of
+      # 2026-09-24) still ships oauth2Authorize/OpenAPIParameter types that don't satisfy
       # BetterAuthPlugin under this repo's exactOptionalPropertyTypes — remove the ignore
-      # once a patch fixes that (attempted and reverted 2026-08-27; re-verified against the
-      # installed 1.7.2 package, still broken, on 2026-09-03).
-      # See .claude/rules/security.md § "Deferred advisories" and issue #13.
+      # once a patch fixes that. Full re-verification history in
+      # .claude/rules/security.md § "Deferred advisories" and issue #13.
       - name: Audit known vulnerabilities (fail on moderate+)
         run: pnpm audit --audit-level=moderate
 
@@ -54,9 +54,11 @@ jobs:
           comment-summary-in-pr: on-failure
           # Deferred: GHSA-p2fr-6hmx-4528 (@better-auth/oauth-provider, CVSS 3.1) — cross-audience
           #   token escalation that needs >1 configured audience. Quick uses a single MCP resource
-          #   (validAudiences: [mcpResource]), so it is not exploitable here; no stable fix exists
-          #   (patched only in the 1.7.0 prerelease line). This mirrors pnpm.auditConfig.ignoreGhsas
-          #   in package.json — remove BOTH when we adopt 1.7. See security.md and issue #13.
+          #   (validAudiences: [mcpResource]), so it is not exploitable here. Fixed upstream since
+          #   1.7.0 GA, but every 1.7.x release through 1.7.5 is blocked by an unrelated
+          #   exactOptionalPropertyTypes incompatibility — see security.md for the full
+          #   re-verification history. This mirrors pnpm.auditConfig.ignoreGhsas in package.json —
+          #   remove BOTH once that upstream type break is fixed. See issue #13.
           allow-ghsas: GHSA-p2fr-6hmx-4528
           # MPL-2.0: lightningcss (Tailwind v4 CSS pipeline, stack-locked). Use unmodified at build time;
           #   MPL §3.3 explicitly allows combining unmodified MPL files into a Larger Work under any license.
