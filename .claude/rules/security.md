@@ -121,7 +121,9 @@ one advisory is deferred:
   patch ships that fixes the `oauth2Authorize` OpenAPI parameter types under
   `exactOptionalPropertyTypes`** (tracked in #13). The companion HIGH advisory (stored
   XSS, GHSA-86j7-9j95-vpqj) is NOT ignored — it is fixed by pinning
-  `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23 (now at 1.6.33).
+  `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23 (now at 1.6.33). **Checked again
+  2026-09-24**: `1.7.5` (released 2026-09-14) is still the newest published version on
+  both packages — no new `1.7.x` patch to re-attempt against since the 2026-09-17 pass.
 
 Do not add further entries without the same three things here: the ID, why we are not
 exposed, and the condition that removes it. Never lower `--audit-level` to dodge an
@@ -140,10 +142,10 @@ comments, so each override is justified here:
   pins `esbuild: ~0.18.20`. `@esbuild-kit/*` is deprecated and unmaintained (its
   successor is `tsx`, which `drizzle-kit` also depends on), so the pin will never be
   fixed upstream. Verified still load-bearing: removing the override resolves
-  `esbuild@0.18.20` and the audit fails. Re-verified 2026-09-17 against
-  `drizzle-kit@0.31.10` (still latest): its published `dependencies` still list
-  `@esbuild-kit/esm-loader: ^2.5.5`, unchanged. **Remove when `drizzle-kit` drops
-  `@esbuild-kit/esm-loader`.**
+  `esbuild@0.18.20` and the audit fails. Re-verified 2026-09-24 against
+  `drizzle-kit@0.31.11` (bumped from `0.31.10` in this PR, now latest): its published
+  `dependencies` still list `@esbuild-kit/esm-loader: ^2.5.5`, unchanged. **Remove when
+  `drizzle-kit` drops `@esbuild-kit/esm-loader`.**
 - **`brace-expansion@<5.0.9` → `>=5.0.9`** (GHSA-mh99-v99m-4gvg / CVE-2026-14257,
   unbounded expansion length → uncatchable OOM, plus GHSA-rgw5-rvv9-x895, a follow-up
   DoS via unbounded intermediate arrays that bypassed the first fix — `5.0.8` alone is
@@ -154,7 +156,7 @@ comments, so each override is justified here:
   `jake@10`. Note `ejs`'s library code never actually requires `jake` — verified by
   grep, it is a packaging artifact — so nothing on our build path calls the vulnerable
   expander. The override is defence-in-depth to keep the audit gate honest. Re-verified
-  2026-09-17 against `workbox-build@7.4.1` (still latest): still depends on
+  2026-09-24 against `workbox-build@7.4.1` (still latest): still depends on
   `@trickfilm400/rollup-plugin-off-main-thread@^3.0.0-pre1`, which still pins
   `ejs: ^3.1.10`. `ejs` itself has moved on (latest is now `6.0.1`, with zero
   dependencies — `jake` is gone), but that range can't reach it: `3.1.10` remains the

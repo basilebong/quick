@@ -19,7 +19,7 @@
     "@better-auth/oauth-provider": "1.6.33",
     "@modelcontextprotocol/sdk": "1.30.0",
     "better-auth": "1.6.33",
-    "drizzle-orm": "0.45.2",
+    "drizzle-orm": "0.45.3",
     "hono": "4.13.8",
     "valibot": "1.5.0"
   }
