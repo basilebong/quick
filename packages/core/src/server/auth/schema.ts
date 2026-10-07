@@ -1,13 +1,10 @@
-import { relations } from "drizzle-orm";
-import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" })
-    .default(false)
-    .notNull(),
+  emailVerified: integer("email_verified", { mode: "boolean" }).default(false).notNull(),
   image: text("image"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" })
@@ -46,12 +43,8 @@ export const accounts = sqliteTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
-    accessTokenExpiresAt: integer("access_token_expires_at", {
-      mode: "timestamp_ms",
-    }),
-    refreshTokenExpiresAt: integer("refresh_token_expires_at", {
-      mode: "timestamp_ms",
-    }),
+    accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp_ms" }),
+    refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp_ms" }),
     scope: text("scope"),
     password: text("password"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
@@ -133,15 +126,13 @@ export const oauthRefreshTokens = sqliteTable(
     clientId: text("client_id")
       .notNull()
       .references(() => oauthClients.clientId, { onDelete: "cascade" }),
-    sessionId: text("session_id").references(() => sessions.id, {
-      onDelete: "set null",
-    }),
+    sessionId: text("session_id").references(() => sessions.id, { onDelete: "set null" }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     referenceId: text("reference_id"),
-    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     revoked: integer("revoked", { mode: "timestamp_ms" }),
     authTime: integer("auth_time", { mode: "timestamp_ms" }),
     scopes: text("scopes", { mode: "json" }).notNull(),
@@ -157,20 +148,16 @@ export const oauthAccessTokens = sqliteTable(
   "oauth_access_tokens",
   {
     id: text("id").primaryKey(),
-    token: text("token").unique(),
+    token: text("token").notNull().unique(),
     clientId: text("client_id")
       .notNull()
       .references(() => oauthClients.clientId, { onDelete: "cascade" }),
-    sessionId: text("session_id").references(() => sessions.id, {
-      onDelete: "set null",
-    }),
+    sessionId: text("session_id").references(() => sessions.id, { onDelete: "set null" }),
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     referenceId: text("reference_id"),
-    refreshId: text("refresh_id").references(() => oauthRefreshTokens.id, {
-      onDelete: "cascade",
-    }),
-    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }),
+    refreshId: text("refresh_id").references(() => oauthRefreshTokens.id, { onDelete: "cascade" }),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     scopes: text("scopes", { mode: "json" }).notNull(),
   },
   (table) => [
@@ -191,90 +178,11 @@ export const oauthConsents = sqliteTable(
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     referenceId: text("reference_id"),
     scopes: text("scopes", { mode: "json" }).notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
     index("oauthConsents_clientId_idx").on(table.clientId),
     index("oauthConsents_userId_idx").on(table.userId),
   ],
 );
-
-export const usersRelations = relations(users, ({ many }) => ({
-  sessions: many(sessions),
-  accounts: many(accounts),
-  oauthClients: many(oauthClients),
-  oauthRefreshTokens: many(oauthRefreshTokens),
-  oauthAccessTokens: many(oauthAccessTokens),
-  oauthConsents: many(oauthConsents),
-}));
-
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  users: one(users, {
-    fields: [sessions.userId],
-    references: [users.id],
-  }),
-}));
-
-export const accountsRelations = relations(accounts, ({ one }) => ({
-  users: one(users, {
-    fields: [accounts.userId],
-    references: [users.id],
-  }),
-}));
-
-export const oauthClientsRelations = relations(oauthClients, ({ one, many }) => ({
-  users: one(users, {
-    fields: [oauthClients.userId],
-    references: [users.id],
-  }),
-  oauthRefreshTokens: many(oauthRefreshTokens),
-  oauthAccessTokens: many(oauthAccessTokens),
-  oauthConsents: many(oauthConsents),
-}));
-
-export const oauthRefreshTokensRelations = relations(oauthRefreshTokens, ({ one, many }) => ({
-  oauthClients: one(oauthClients, {
-    fields: [oauthRefreshTokens.clientId],
-    references: [oauthClients.clientId],
-  }),
-  sessions: one(sessions, {
-    fields: [oauthRefreshTokens.sessionId],
-    references: [sessions.id],
-  }),
-  users: one(users, {
-    fields: [oauthRefreshTokens.userId],
-    references: [users.id],
-  }),
-  oauthAccessTokens: many(oauthAccessTokens),
-}));
-
-export const oauthAccessTokensRelations = relations(oauthAccessTokens, ({ one }) => ({
-  oauthClients: one(oauthClients, {
-    fields: [oauthAccessTokens.clientId],
-    references: [oauthClients.clientId],
-  }),
-  sessions: one(sessions, {
-    fields: [oauthAccessTokens.sessionId],
-    references: [sessions.id],
-  }),
-  users: one(users, {
-    fields: [oauthAccessTokens.userId],
-    references: [users.id],
-  }),
-  oauthRefreshTokens: one(oauthRefreshTokens, {
-    fields: [oauthAccessTokens.refreshId],
-    references: [oauthRefreshTokens.id],
-  }),
-}));
-
-export const oauthConsentsRelations = relations(oauthConsents, ({ one }) => ({
-  oauthClients: one(oauthClients, {
-    fields: [oauthConsents.clientId],
-    references: [oauthClients.clientId],
-  }),
-  users: one(users, {
-    fields: [oauthConsents.userId],
-    references: [users.id],
-  }),
-}));

@@ -2,9 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
 
-allowBuilds:
-  '0': esbuild
-  '1': '@biomejs/biome'
 blockExoticSubdeps: true
 
 minimumReleaseAge: 1440

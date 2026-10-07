@@ -124,6 +124,15 @@ one advisory is deferred:
   `better-auth`/`@better-auth/oauth-provider` ≥ 1.6.23 (now at 1.6.33). **Checked again
   2026-09-24**: `1.7.5` (released 2026-09-14) is still the newest published version on
   both packages — no new `1.7.x` patch to re-attempt against since the 2026-09-17 pass.
+  **Re-attempted on 2026-10-01 against the installed `1.7.6` package** (released
+  2026-09-24; `1.7.7` shipped 2026-09-30 and is still inside the 24h
+  `minimumReleaseAge` gate): `tsc -b` still fails on the identical
+  `oauth2Authorize`/`OpenAPIParameter.schema.items` incompatibility, `mcpHandler` is still
+  gone from `@better-auth/oauth-provider`, and the same nine test suites still fail on the
+  `internalAdapter` call-signature change. Also unpacked the `1.7.7` tarball
+  (`npm pack @better-auth/oauth-provider@1.7.7`): its `.d.mts` ships the same six
+  `items?: undefined` OpenAPI parameter entries, so it does not fix the blocker either.
+  `1.6.33` is still the newest `1.6.x` release. Reverted.
 
 Do not add further entries without the same three things here: the ID, why we are not
 exposed, and the condition that removes it. Never lower `--audit-level` to dodge an
@@ -142,27 +151,24 @@ comments, so each override is justified here:
   pins `esbuild: ~0.18.20`. `@esbuild-kit/*` is deprecated and unmaintained (its
   successor is `tsx`, which `drizzle-kit` also depends on), so the pin will never be
   fixed upstream. Verified still load-bearing: removing the override resolves
-  `esbuild@0.18.20` and the audit fails. Re-verified 2026-09-24 against
-  `drizzle-kit@0.31.11` (bumped from `0.31.10` in this PR, now latest): its published
-  `dependencies` still list `@esbuild-kit/esm-loader: ^2.5.5`, unchanged. **Remove when
-  `drizzle-kit` drops `@esbuild-kit/esm-loader`.**
-- **`brace-expansion@<5.0.9` → `>=5.0.9`** (GHSA-mh99-v99m-4gvg / CVE-2026-14257,
-  unbounded expansion length → uncatchable OOM, plus GHSA-rgw5-rvv9-x895, a follow-up
-  DoS via unbounded intermediate arrays that bypassed the first fix — `5.0.8` alone is
-  no longer sufficient, hence the bumped floor). Reached at BUILD time only, via
-  `vite-plugin-pwa` → `workbox-build` → `@trickfilm400/rollup-plugin-off-main-thread`
-  → `ejs` → `jake` → `filelist` → `minimatch@5`, which pins `brace-expansion: ^2.0.1`.
-  `filelist@2` moved to `minimatch@10` (fixed range), but `ejs@3.1.10` still pulls
-  `jake@10`. Note `ejs`'s library code never actually requires `jake` — verified by
-  grep, it is a packaging artifact — so nothing on our build path calls the vulnerable
-  expander. The override is defence-in-depth to keep the audit gate honest. Re-verified
-  2026-09-24 against `workbox-build@7.4.1` (still latest): still depends on
-  `@trickfilm400/rollup-plugin-off-main-thread@^3.0.0-pre1`, which still pins
-  `ejs: ^3.1.10`. `ejs` itself has moved on (latest is now `6.0.1`, with zero
-  dependencies — `jake` is gone), but that range can't reach it: `3.1.10` remains the
-  newest release satisfying `^3.1.10`, and no `ejs@3.1.x` patch after it exists to drop
-  `jake` in place. **Remove when `workbox-build` ships a `rollup-plugin-off-main-thread`
-  that drops `ejs`, or when its `ejs` dependency range can reach `6.x`.**
+  `esbuild@0.18.20` and the audit fails. Re-verified 2026-10-01 against
+  `drizzle-kit@0.31.11` (still latest stable): its published `dependencies` still list
+  `@esbuild-kit/esm-loader: ^2.5.5`, and a fresh resolve without the override still pulls
+  `esbuild@0.18.20` and fails the audit. **Remove when `drizzle-kit` drops
+  `@esbuild-kit/esm-loader`.**
+
+Removed overrides (kept for history, do not re-add without re-verifying):
+
+- **`brace-expansion@<5.0.9` → `>=5.0.9`** — removed 2026-10-01. Its only consumer below
+  the floor was `minimatch@5` (via `workbox-build` → … → `ejs@3.1.10` → `jake` →
+  `filelist@1`), which pins `brace-expansion: ^2.0.1`. The `2.x` line is now patched
+  in place: `2.1.7` (2026-09-14) is outside every advisory range the npm bulk advisory
+  endpoint lists for `2.x` (GHSA-mh99-v99m-4gvg `<2.1.3`, GHSA-rgw5-rvv9-x895 `<2.1.4`,
+  GHSA-6j4f-fj2g-mc7p `<2.1.5`, GHSA-qhr7-859c-m2p7 `<2.1.6`, GHSA-q2hr-2g5m-vwhr
+  `<2.1.7`, plus the older GHSA-3jxr-9vmj-r5cp / GHSA-f886-m6hf-6m8v). With the override
+  gone, `minimatch@5` resolves `2.1.7` within its own range and `pnpm audit` is clean.
+  The override had also been forcing the `5.x` major onto a `^2` consumer; that is now
+  gone too.
 
 Overrides are not a substitute for a real upgrade. Every entry above must be re-checked
 on each dependency audit and dropped as soon as the upstream chain is fixed.
