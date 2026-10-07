@@ -43,7 +43,6 @@ export const createAssistantsService = (db: Db): AssistantsService => ({
           id: oauthConsents.id,
           clientId: oauthConsents.clientId,
           createdAt: oauthConsents.createdAt,
-          updatedAt: oauthConsents.updatedAt,
           clientName: oauthClients.name,
         })
         .from(oauthConsents)
@@ -56,7 +55,7 @@ export const createAssistantsService = (db: Db): AssistantsService => ({
           id: parseOAuthConsentId(row.id),
           clientId: row.clientId,
           name: displayName(row.clientName, row.clientId),
-          connectedAt: row.createdAt?.getTime() ?? row.updatedAt?.getTime() ?? 0,
+          connectedAt: row.createdAt.getTime(),
         }),
       );
       return ok(assistants);

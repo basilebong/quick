@@ -70,8 +70,8 @@ one advisory is deferred:
   #8855 for the same `exactOptionalPropertyTypes` incompatibility in other plugins),
   not something fixable from Quick's application code, and CLAUDE.md rule 14 forbids
   suppressing it with a cast or `@ts-expect-error` to force the migration through.
-  The migration also requires a schema regen (`bun run auth:generate` /
-  `bun run db:generate`) and touches `better-auth`'s `internalAdapter.createUser`
+  The migration also requires a schema update (`auth/schema.ts` until
+  `auth/schema.test.ts` passes, then `bun run db:generate`) and touches `better-auth`'s `internalAdapter.createUser`
   signature (now `(issuer, accountId)`-scoped) — sized but not attempted further once
   the type-level blocker was hit. **Re-attempted on 2026-09-03 directly against the
   installed `1.7.2` package (not just its tarball)**: `tsc -b` still fails with the

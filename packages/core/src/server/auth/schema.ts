@@ -140,8 +140,8 @@ export const oauthRefreshTokens = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     referenceId: text("reference_id"),
-    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     revoked: integer("revoked", { mode: "timestamp_ms" }),
     authTime: integer("auth_time", { mode: "timestamp_ms" }),
     scopes: text("scopes", { mode: "json" }).notNull(),
@@ -157,7 +157,7 @@ export const oauthAccessTokens = sqliteTable(
   "oauth_access_tokens",
   {
     id: text("id").primaryKey(),
-    token: text("token").unique(),
+    token: text("token").notNull().unique(),
     clientId: text("client_id")
       .notNull()
       .references(() => oauthClients.clientId, { onDelete: "cascade" }),
@@ -169,8 +169,8 @@ export const oauthAccessTokens = sqliteTable(
     refreshId: text("refresh_id").references(() => oauthRefreshTokens.id, {
       onDelete: "cascade",
     }),
-    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     scopes: text("scopes", { mode: "json" }).notNull(),
   },
   (table) => [
@@ -191,8 +191,8 @@ export const oauthConsents = sqliteTable(
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     referenceId: text("reference_id"),
     scopes: text("scopes", { mode: "json" }).notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
     index("oauthConsents_clientId_idx").on(table.clientId),

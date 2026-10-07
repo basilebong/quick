@@ -51,6 +51,7 @@ const insertAccessToken = async (
     userId: opts.userId,
     scopes: ["openid", "mcp"],
     createdAt: new Date("2026-05-28T08:30:00.000Z"),
+    expiresAt: new Date("2026-05-28T09:30:00.000Z"),
   });
 };
 
@@ -65,6 +66,7 @@ const insertRefreshToken = async (
     userId: opts.userId,
     scopes: ["openid", "mcp"],
     createdAt: new Date("2026-05-28T08:30:00.000Z"),
+    expiresAt: new Date("2026-05-28T09:30:00.000Z"),
   });
 };
 
