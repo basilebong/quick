@@ -17,6 +17,7 @@
     "check:source": "bun ./scripts/check-source.ts",
     "format": "biome format --write .",
     "lint:fix": "biome check --write .",
+    "auth:generate": "bun ./scripts/generate-auth-schema.ts",
     "db:generate": "bun --bun drizzle-kit generate",
     "db:migrate": "bun --bun ./scripts/migrate.ts"
   },

@@ -5,6 +5,7 @@ import { getTableColumns, is } from "drizzle-orm";
 import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { withTestAuth } from "../test/with-test-auth.ts";
 import * as authSchema from "./schema.ts";
+import { AUTH_SCHEMA_PATH, generateAuthSchema } from "./schema-generator.ts";
 
 type AuthTables = ReturnType<typeof getAuthTables>;
 type FieldAttribute = AuthTables[string]["fields"][string];
@@ -130,6 +131,10 @@ const diffAgainstBetterAuth = (tables: AuthTables): string[] => {
 };
 
 describe("auth schema", () => {
+  test("is exactly what `bun run auth:generate` produces", async () => {
+    expect(await Bun.file(AUTH_SCHEMA_PATH).text()).toBe(generateAuthSchema());
+  });
+
   test("matches the tables better-auth and its plugins expect", async () => {
     await withTestAuth({}, async ({ auth }) => {
       expect(diffAgainstBetterAuth(getAuthTables(auth.options))).toEqual([]);

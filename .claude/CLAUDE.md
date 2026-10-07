@@ -111,8 +111,7 @@ sign-in or expiring secret links. The security model is load-bearing — read
 - Test:            `bun test`
 - Types:           `bun run typecheck`
 - Lint + format:   `bun run check`           (Biome)
-- Auth schema:     edit `packages/core/src/server/auth/schema.ts` until
-                   `auth/schema.test.ts` passes, then `bun run db:generate`
+- Auth schema:     `bun run auth:generate`   then `bun run db:generate`, commit both
 - DB migrations:   `bun run db:generate`     then commit `/drizzle`
 - UI components:   `bunx shadcn@latest add <name>`  in `apps/web`
 - Prod image:      `docker build -t quick .`
