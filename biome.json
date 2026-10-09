@@ -13,8 +13,7 @@
       "!**/build",
       "!**/coverage",
       "!**/data",
-      "!**/drizzle",
-      "!**/packages/core/src/server/auth/schema.ts"
+      "!**/drizzle"
     ]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },

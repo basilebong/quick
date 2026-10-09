@@ -1,3 +1,4 @@
+import type { MiddlewareHandler } from "hono";
 import { createMiddleware } from "hono/factory";
 
 // CSRF / cross-app isolation. All `*.${QUICK_DOMAIN}` are the SAME SITE, so
@@ -7,7 +8,7 @@ import { createMiddleware } from "hono/factory";
 // header: a cookieless client is exempt, while any cookie-bearing
 // state-changing request must prove same-origin. Fails CLOSED — a cookie with
 // no Sec-Fetch and no Origin/Referer is rejected. Preflight is left to CORS.
-export const createOriginCheck = () =>
+export const createOriginCheck = (): MiddlewareHandler =>
   createMiddleware(async (c, next) => {
     const method = c.req.method;
     if (method === "OPTIONS" || method === "HEAD") return next();
