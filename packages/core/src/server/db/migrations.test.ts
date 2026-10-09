@@ -107,3 +107,134 @@ describe("migration 0007: better-auth oauth columns become NOT NULL", () => {
     ).toThrow(/NOT NULL/);
   });
 });
+
+const TableInfoSchema = v.array(
+  v.looseObject({ name: v.string(), type: v.string(), pk: v.number() }),
+);
+const ForeignKeyListSchema = v.array(
+  v.looseObject({ table: v.string(), from: v.string(), to: v.nullable(v.string()) }),
+);
+const NameSchema = v.array(v.looseObject({ name: v.string() }));
+
+type Column = { name: string; type: string };
+type ForeignKey = { table: string; from: string; to: string };
+type Table = { name: string; columns: Column[]; foreignKeys: ForeignKey[] };
+
+const primaryKeyOf = (db: Db, table: string): string => {
+  const pk = v
+    .parse(TableInfoSchema, db.$client.query(`PRAGMA table_info(\`${table}\`)`).all())
+    .find((c) => c.pk === 1);
+  if (pk === undefined) throw new Error(`${table} has no primary key`);
+  return pk.name;
+};
+
+const readTables = (db: Db): Table[] =>
+  v
+    .parse(
+      NameSchema,
+      db.$client
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations'",
+        )
+        .all(),
+    )
+    .map(({ name }) => ({
+      name,
+      columns: v
+        .parse(TableInfoSchema, db.$client.query(`PRAGMA table_info(\`${name}\`)`).all())
+        .map((c) => ({ name: c.name, type: c.type.toLowerCase() })),
+      foreignKeys: v
+        .parse(ForeignKeyListSchema, db.$client.query(`PRAGMA foreign_key_list(\`${name}\`)`).all())
+        .map((fk) => ({ table: fk.table, from: fk.from, to: fk.to ?? primaryKeyOf(db, fk.table) })),
+    }));
+
+const seedValue = (table: string, column: Column): string | number =>
+  column.type.startsWith("int") ? 1 : `seed:${table}.${column.name}`;
+
+const inDependencyOrder = (tables: Table[]): Table[] => {
+  const ordered: Table[] = [];
+  const pending = new Map(tables.map((t) => [t.name, t]));
+  while (pending.size > 0) {
+    const ready = [...pending.values()].filter((t) =>
+      t.foreignKeys.every((fk) => fk.table === t.name || !pending.has(fk.table)),
+    );
+    if (ready.length === 0) throw new Error(`foreign-key cycle among ${[...pending.keys()]}`);
+    for (const t of ready) {
+      ordered.push(t);
+      pending.delete(t.name);
+    }
+  }
+  return ordered;
+};
+
+const seedEveryTable = (db: Db): void => {
+  const tables = readTables(db);
+  const byName = new Map(tables.map((t) => [t.name, t]));
+  for (const table of inDependencyOrder(tables)) {
+    const values = table.columns.map((column) => {
+      const fk = table.foreignKeys.find((f) => f.from === column.name);
+      const parentColumn = fk && byName.get(fk.table)?.columns.find((c) => c.name === fk.to);
+      return fk && parentColumn ? seedValue(fk.table, parentColumn) : seedValue(table.name, column);
+    });
+    const names = table.columns.map((c) => `\`${c.name}\``).join(", ");
+    const params = table.columns.map(() => "?").join(", ");
+    db.$client.query(`INSERT INTO \`${table.name}\` (${names}) VALUES (${params})`).run(...values);
+  }
+};
+
+type TableSnapshot = { columns: ReadonlySet<string>; rows: Record<string, unknown>[] };
+
+const snapshot = (db: Db): Map<string, TableSnapshot> =>
+  new Map(
+    readTables(db).map((t) => [
+      t.name,
+      {
+        columns: new Set(t.columns.map((c) => c.name)),
+        rows: db.$client
+          .query<Record<string, unknown>, []>(`SELECT * FROM \`${t.name}\` ORDER BY rowid`)
+          .all(),
+      },
+    ]),
+  );
+
+const projectOnto = (rows: Record<string, unknown>[], columns: ReadonlySet<string>) =>
+  rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => columns.has(k))));
+
+const journalEntries = v.parse(
+  JournalSchema,
+  JSON.parse(readFileSync(join(migrationsFolder, "meta/_journal.json"), "utf8")),
+).entries;
+
+describe("every migration preserves existing rows", () => {
+  for (const { idx, tag } of journalEntries.filter((e) => e.idx > 0)) {
+    test(`${tag} keeps every row in every table it does not drop`, () => {
+      const previousDir = mkdtempSync(join(tmpdir(), "quick-migrations-"));
+      const currentDir = mkdtempSync(join(tmpdir(), "quick-migrations-"));
+      try {
+        migrationsUpTo(previousDir, idx - 1);
+        migrationsUpTo(currentDir, idx);
+        const db = createDb({ path: ":memory:" });
+        migrate(db, { migrationsFolder: previousDir });
+        seedEveryTable(db);
+        const seeded = snapshot(db);
+
+        migrate(db, { migrationsFolder: currentDir });
+
+        const migrated = snapshot(db);
+        for (const [table, before] of seeded) {
+          const after = migrated.get(table);
+          if (after === undefined) continue;
+          const shared = new Set([...before.columns].filter((c) => after.columns.has(c)));
+          expect({ table, rows: projectOnto(after.rows, shared) }).toEqual({
+            table,
+            rows: projectOnto(before.rows, shared),
+          });
+        }
+        expect(db.$client.query("PRAGMA foreign_key_check").all()).toEqual([]);
+      } finally {
+        rmSync(previousDir, { recursive: true, force: true });
+        rmSync(currentDir, { recursive: true, force: true });
+      }
+    });
+  }
+});
