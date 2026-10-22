@@ -17,9 +17,9 @@
     "@modelcontextprotocol/sdk": "1.32.1",
     "@quick/core": "workspace:*",
     "hono": "4.13.13",
-    "ts-pattern": "5.9.0",
+    "ts-pattern": "5.9.2",
     "ulid": "3.0.2",
     "valibot": "1.5.0",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   }
 }
