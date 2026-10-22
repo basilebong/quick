@@ -17,7 +17,15 @@ const flagSchema = v.pipe(
 const urlSchema = v.pipe(v.string(), v.url());
 const nonEmptySchema = v.pipe(v.string(), v.minLength(1));
 const secretSchema = v.pipe(v.string(), v.minLength(32));
-const daysSchema = v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(1));
+const daysSchema = v.pipe(
+  v.string(),
+  v.regex(/^\d+$/),
+  v.transform(Number),
+  v.number(),
+  v.integer(),
+  v.minValue(1),
+  v.maxValue(3650),
+);
 
 const envSchema = v.object({
   PORT: v.optional(portSchema, "3000"),

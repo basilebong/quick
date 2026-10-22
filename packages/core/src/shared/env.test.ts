@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseEnv } from "./env.ts";
+import { parseEnv, parseRuntimeEnv } from "./env.ts";
 
 describe("parseEnv", () => {
   test("applies defaults when env is empty", () => {
@@ -70,5 +70,41 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ MCP_HOST: "" })).toThrow();
     expect(() => parseEnv({ GOOGLE_ID: "" })).toThrow();
     expect(() => parseEnv({ DATABASE_PATH: "" })).toThrow();
+  });
+
+  test("QUICK_ACCESS_LOG_RETENTION_DAYS defaults to 30 and parses whole days", () => {
+    expect(parseEnv({}).QUICK_ACCESS_LOG_RETENTION_DAYS).toBe(30);
+    expect(parseEnv({ QUICK_ACCESS_LOG_RETENTION_DAYS: "7" }).QUICK_ACCESS_LOG_RETENTION_DAYS).toBe(
+      7,
+    );
+    expect(
+      parseEnv({ QUICK_ACCESS_LOG_RETENTION_DAYS: "3650" }).QUICK_ACCESS_LOG_RETENTION_DAYS,
+    ).toBe(3650);
+  });
+
+  test("QUICK_ACCESS_LOG_RETENTION_DAYS rejects anything but 1-3650 written as plain digits", () => {
+    for (const raw of ["", " 30 ", "0", "-1", "3.5", "abc", "0x1e", "1e3", "Infinity", "3651"]) {
+      expect(() => parseEnv({ QUICK_ACCESS_LOG_RETENTION_DAYS: raw })).toThrow();
+    }
+  });
+});
+
+describe("parseRuntimeEnv", () => {
+  const required = {
+    BETTER_AUTH_URL: "https://quick.example.com",
+    BETTER_AUTH_SECRET: "a".repeat(32),
+    GOOGLE_ID: "id",
+    GOOGLE_SECRET: "secret",
+    DATABASE_PATH: "/data/app.db",
+    QUICK_ALLOWED_EMAILS: "owner@example.com",
+  };
+
+  test("QUICK_ACCESS_LOG_RETENTION_DAYS defaults to 30 and is validated", () => {
+    expect(parseRuntimeEnv(required).QUICK_ACCESS_LOG_RETENTION_DAYS).toBe(30);
+    expect(
+      parseRuntimeEnv({ ...required, QUICK_ACCESS_LOG_RETENTION_DAYS: "14" })
+        .QUICK_ACCESS_LOG_RETENTION_DAYS,
+    ).toBe(14);
+    expect(() => parseRuntimeEnv({ ...required, QUICK_ACCESS_LOG_RETENTION_DAYS: "0" })).toThrow();
   });
 });

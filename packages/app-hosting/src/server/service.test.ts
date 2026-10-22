@@ -317,12 +317,13 @@ describe("hosting service", () => {
 
     await insertAt("old_40d", 40);
     await insertAt("old_31d", 31);
+    await insertAt("at_cutoff_30d", 30);
     await insertAt("fresh_5d", 5);
 
     const deleted = await service.purgeAccessLogOlderThan(new Date(now - 30 * day));
     expect(deleted).toBe(2);
 
     const remaining = await db.select({ id: accessLog.id }).from(accessLog);
-    expect(remaining.map((r) => r.id)).toEqual(["fresh_5d"]);
+    expect(remaining.map((r) => r.id).sort()).toEqual(["at_cutoff_30d", "fresh_5d"]);
   });
 });
