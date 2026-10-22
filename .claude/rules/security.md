@@ -134,6 +134,32 @@ one advisory is deferred:
   entries as `1.7.7`, so the next patch is not a fix either. `1.6.33` is still the newest
   `1.6.x`, and the npm advisory endpoint lists no `1.6.x` backport (vulnerable range
   `>=1.4.8 <1.7.0-beta.4`). `ignoreGhsas` stays.
+  **Re-attempted 2026-10-22 against the installed `1.7.12` package** (`better-auth`,
+  `@better-auth/oauth-provider`, `@better-auth/mcp`): **the type blocker is gone.** With
+  `createMcpAuthGuard` switched to `@better-auth/mcp`'s `createMcpProtectedRequestHandler`
+  and the test call sites passing the new `createUser(user, source)` provisioning source,
+  `tsc -b` is clean. What remains is a real auth migration, not a version bump, so it was
+  reverted and is waiting on a decision (#13):
+  - `oauthProvider<O extends OAuthOptions>` is generic, so removed options are not
+    excess-property errors. `validAudiences` and `silenceWarnings` no longer exist and are
+    silently ignored. Audiences are now persisted `oauth_resources` rows configured via
+    `resources` (or `@better-auth/mcp`'s `mcp({ resource })`, which replaces
+    `oauthProvider`). A green `tsc -b` therefore does not prove the MCP audience is set.
+  - `enforcePerClientResources` defaults to `true`, so every already-registered DCR client
+    (e.g. Claude's) must be linked to the MCP resource in `oauth_client_resources`, or its
+    token and refresh requests fail after the upgrade. The migration needs a backfill.
+  - The schema needs 3 new tables, about 25 new columns, drops `oauth_clients.public` and
+    `.type`, and adds `NOT NULL` to `expires_at`/`created_at` on the token and consent
+    tables. Better Auth now refuses to start on a stale schema (`Drizzle schema mismatch`),
+    so 46 tests fail until it is regenerated. `bun run auth:generate`
+    (`@better-auth/cli@1.4.21` under Node) cannot load `bun:sqlite`. The `1.7.x` CLI is the
+    `auth` package, and it works under Bun: `bun --bun <auth@1.7.12>/dist/index.mjs generate
+    --config better-auth.config.ts`. It still drops the hand-added
+    `accounts_provider_account_unique` composite index, so its output can't be committed as-is.
+  - No test drives DCR → authorize → consent → token → `/mcp`, so nothing would catch a
+    broken MCP OAuth flow. That integration test should land before the migration does.
+  `1.6.33` is still the newest `1.6.x`, with no backport. `ignoreGhsas` stays until the
+  migration lands.
 
 Do not add further entries without the same three things here: the ID, why we are not
 exposed, and the condition that removes it. Never lower `--audit-level` to dodge an
@@ -155,7 +181,9 @@ comments, so each override is justified here:
   `esbuild@0.18.20` and the audit fails. Re-verified 2026-10-15 against
   `drizzle-kit@0.31.11` (still latest stable): its published `dependencies` still list
   `@esbuild-kit/esm-loader: ^2.5.5`, and a fresh resolve without the override still
-  pulls `esbuild@0.18.20` and fails the audit. **Remove when
+  pulls `esbuild@0.18.20` and fails the audit. Re-verified 2026-10-22: `0.31.11` is
+  still `latest` (`1.0.0` is only at `rc.5`), and removing the override still resolves
+  `esbuild@0.18.20` and fails the audit. **Remove when
   `drizzle-kit` drops `@esbuild-kit/esm-loader`.**
 
 Overrides are not a substitute for a real upgrade. Every entry above must be re-checked
