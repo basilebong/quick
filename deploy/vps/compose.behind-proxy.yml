@@ -13,6 +13,7 @@ services:
       - GOOGLE_SECRET=${GOOGLE_SECRET}
       - QUICK_ALLOWED_EMAILS=${QUICK_ALLOWED_EMAILS}
       - MCP_HOST=${MCP_HOST}
+      - QUICK_ACCESS_LOG_RETENTION_DAYS=${QUICK_ACCESS_LOG_RETENTION_DAYS:-30}
     volumes:
       - ./data:/data
     ports:

@@ -57,7 +57,6 @@ export const AccessLogTab = ({ app }: { app: AppSummary }): React.ReactElement =
             <TableHead>Mode</TableHead>
             <TableHead>Who</TableHead>
             <TableHead>Path</TableHead>
-            <TableHead>IP</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,7 +75,6 @@ export const AccessLogTab = ({ app }: { app: AppSummary }): React.ReactElement =
               <TableCell className="max-w-[12rem] truncate font-mono text-muted-foreground text-xs">
                 {entry.path}
               </TableCell>
-              <TableCell className="text-muted-foreground">{entry.ip ?? "—"}</TableCell>
             </TableRow>
           ))}
         </TableBody>

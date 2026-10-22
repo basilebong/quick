@@ -2,7 +2,6 @@ import { getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import type { Viewer } from "../../shared/index.ts";
 import { googleAccessDeniedPage, linkAccessPage } from "../html.ts";
-import { clientIpFromXff } from "../net.ts";
 import type { ShareResolver, TenantVariables, ViewerVariables } from "../tenant.ts";
 
 // Remembers a redeemed link (the raw token). HOST-ONLY (no Domain) so it never
@@ -40,8 +39,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
     const tenant = c.var.tenant;
     if (tenant.kind !== "app") return next();
     const app = tenant.app;
-    const ip = clientIpFromXff(c.req.header("x-forwarded-for"));
-    const userAgent = c.req.header("user-agent") ?? null;
     const isNavigation = c.req.header("sec-fetch-dest") === "document";
 
     if (app.shareMode === "google") {
@@ -65,8 +62,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
             viewer,
             event: "denied",
             path: c.req.path,
-            ip,
-            userAgent,
           });
           return c.html(googleAccessDeniedPage(session.email), 403);
         }
@@ -78,8 +73,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
             viewer,
             event: "view",
             path: c.req.path,
-            ip,
-            userAgent,
           });
         }
         return next();
@@ -129,8 +122,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
           viewer,
           event: "view",
           path: c.req.path,
-          ip,
-          userAgent,
         });
         const u = new URL(c.req.url);
         u.searchParams.delete("t");
@@ -144,8 +135,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
           viewer,
           event: "view",
           path: c.req.path,
-          ip,
-          userAgent,
         });
       }
       return next();
@@ -158,8 +147,6 @@ export const createShareGate = (deps: ShareGateDeps) =>
         viewer: null,
         event: "denied",
         path: c.req.path,
-        ip,
-        userAgent,
       });
     }
     return c.html(linkAccessPage(res.kind === "expired" ? "expired" : "missing"), 403);
