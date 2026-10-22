@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -14,7 +14,10 @@
       "!**/coverage",
       "!**/data",
       "!**/drizzle",
-      "!**/packages/core/src/server/auth/schema.ts"
+      "!**/packages/core/src/server/auth/schema.ts",
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/*.yaml"
     ]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
@@ -36,18 +39,18 @@
         "useExportType": "error",
         "noNonNullAssertion": "error",
         "useNodejsImportProtocol": "error",
-        "useConsistentArrayType": { "level": "error", "options": { "syntax": "shorthand" } }
+        "useConsistentArrayType": {
+          "level": "error",
+          "options": { "syntax": "shorthand" }
+        }
       },
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedVariables": "error"
       },
       "nursery": {
-        "useSortedClasses": {
-          "level": "warn",
-          "options": {
-            "functions": ["cn", "clsx", "cva", "tw"]
-          }
+        "useTailwindSortedClasses": {
+          "level": "warn"
         }
       }
     }
@@ -69,5 +72,9 @@
     "parser": {
       "tailwindDirectives": true
     }
+  },
+  "tailwind": {
+    "mergeFunctions": ["cn", "clsx", "tw"],
+    "variantFunctions": ["cva"]
   }
 }

@@ -133,8 +133,7 @@ one advisory is deferred:
   (`npm pack @better-auth/oauth-provider@1.7.8`): it ships the same six `items?: undefined`
   entries as `1.7.7`, so the next patch is not a fix either. `1.6.33` is still the newest
   `1.6.x`, and the npm advisory endpoint lists no `1.6.x` backport (vulnerable range
-  `>=1.4.8 <1.7.0-beta.4`). `ignoreGhsas` stays.
-  **Re-attempted 2026-10-22 against the installed `1.7.12` package** (`better-auth`,
+  `>=1.4.8 <1.7.0-beta.4`). **Re-attempted 2026-10-22 against the installed `1.7.12` package** (`better-auth`,
   `@better-auth/oauth-provider`, `@better-auth/mcp`): **the type blocker is gone.** With
   `createMcpAuthGuard` switched to `@better-auth/mcp`'s `createMcpProtectedRequestHandler`
   and the test call sites passing the new `createUser(user, source)` provisioning source,
