@@ -1,0 +1,107 @@
+{
+  "secret": "test-secret-must-be-at-least-32-chars-long",
+  "refreshToken": "osNDAdDGqijIyeIIzSyMKrYuoBbnuFTL",
+  "clientId": "eNXJFjYOGZFIyfREbkaAdwbffRPLKIVU",
+  "redirectUri": "http://127.0.0.1:33418/callback",
+  "rows": {
+    "users": [
+      {
+        "id": "h9pnqWuXwjpgvpLIYZQLp4PesS0iLDQk",
+        "name": "Owner",
+        "email": "owner@example.com",
+        "email_verified": 0,
+        "image": null,
+        "created_at": 1793237367406,
+        "updated_at": 1793237367406
+      }
+    ],
+    "sessions": [
+      {
+        "id": "Ussganc2Xrsn3TPSW1K2WkmRXQm8Eirx",
+        "expires_at": 1795829367416,
+        "token": "FyTgrySCpxgCnhIfNMtbJkY0C1fFp38g",
+        "created_at": 1793237367416,
+        "updated_at": 1793237367416,
+        "ip_address": "",
+        "user_agent": "",
+        "user_id": "h9pnqWuXwjpgvpLIYZQLp4PesS0iLDQk"
+      }
+    ],
+    "jwkss": [
+      {
+        "id": "GfvDokxLM3EEoUCEl70FA2kfaAqtN0xK",
+        "public_key": "{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"N20elQB1awlL0YvlyLge00T9BgpkU1qznc0QlICmgOU\"}",
+        "private_key": "\"1573ba2fa282f91c08daa342246aa4b6ec869c3c90393049adc04bccc1999797d34dbc5426ede3197dbc559f69f3e035f55996704c1becac3328134f8118949dc8cf1bf21fedd00d3327276b67c4e6073471722bc7418fb5030b629209485873ff0892fc76f1ef78d932bede357b1c723acee97750d285f92cadf4f94a089d994461d99fbe276b6c8a75f6287a4ef821dce8d2fea82302b99e48ac58e21ecb275bead43f70f0e20100\"",
+        "created_at": 1793237367530,
+        "expires_at": null
+      },
+      {
+        "id": "1uV2HrFyGZg3WB1dS1uR9x85QcMe4xjq",
+        "public_key": "{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"aYW-cHeWBnKt32cI-ezBa-2q50yd2uBOvhc5My5nSEQ\"}",
+        "private_key": "\"d4d06798fb98c0e3426ee33e715e5855e78ee3fe866b15905d2fa270f84793af8e3178044207faec09ebb95bda9bb92974eba1d0c69683e1075329e4ab474996b66c87735982297251f6666bef2e9ba72a6e53421980e31b148768b0d4cde5f6f8205db359d36aa31024004d320b7b0fcc4931405977a53ef5c450b235cf5fd6aa0b5d4ea3889e6e06ab6578138dff2d812d35d0052d8b86b923b4c6499fcbdf0596bbd00478075c38\"",
+        "created_at": 1793237367532,
+        "expires_at": null
+      }
+    ],
+    "oauth_clients": [
+      {
+        "id": "yRHtsNr7dzHNkZTj1WfYGRCBLjQnw2tU",
+        "client_id": "eNXJFjYOGZFIyfREbkaAdwbffRPLKIVU",
+        "client_secret": null,
+        "disabled": 0,
+        "skip_consent": null,
+        "enable_end_session": null,
+        "subject_type": null,
+        "scopes": "\"[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"offline_access\\\"]\"",
+        "user_id": null,
+        "created_at": 1793237367000,
+        "updated_at": 1793237367000,
+        "name": "MCP test client",
+        "uri": null,
+        "icon": null,
+        "contacts": null,
+        "tos": null,
+        "policy": null,
+        "software_id": null,
+        "software_version": null,
+        "software_statement": null,
+        "redirect_uris": "\"[\\\"http://127.0.0.1:33418/callback\\\"]\"",
+        "post_logout_redirect_uris": null,
+        "token_endpoint_auth_method": "none",
+        "grant_types": "\"[\\\"authorization_code\\\",\\\"refresh_token\\\"]\"",
+        "response_types": "\"[\\\"code\\\"]\"",
+        "public": 1,
+        "type": null,
+        "require_pkce": null,
+        "reference_id": null,
+        "metadata": null
+      }
+    ],
+    "oauth_consents": [
+      {
+        "id": "PCVTwkoK7f8SDr7maAbAGr9c26nMdNW2",
+        "client_id": "eNXJFjYOGZFIyfREbkaAdwbffRPLKIVU",
+        "user_id": "h9pnqWuXwjpgvpLIYZQLp4PesS0iLDQk",
+        "reference_id": null,
+        "scopes": "\"[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"offline_access\\\"]\"",
+        "created_at": 1793237367000,
+        "updated_at": 1793237367000
+      }
+    ],
+    "oauth_refresh_tokens": [
+      {
+        "id": "zvu8VLTZrkiQzwTsPbSKLDObLjLa6DtJ",
+        "token": "xu8drN3G_4JxPrBLwvNiOJOCYHz0EuZ_LxSbVy3mCjU",
+        "client_id": "eNXJFjYOGZFIyfREbkaAdwbffRPLKIVU",
+        "session_id": "Ussganc2Xrsn3TPSW1K2WkmRXQm8Eirx",
+        "user_id": "h9pnqWuXwjpgvpLIYZQLp4PesS0iLDQk",
+        "reference_id": null,
+        "expires_at": 1795829367000,
+        "created_at": 1793237367000,
+        "revoked": null,
+        "auth_time": 1793237367416,
+        "scopes": "\"[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"offline_access\\\"]\""
+      }
+    ]
+  }
+}

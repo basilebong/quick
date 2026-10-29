@@ -12,15 +12,16 @@ export {
   createAuditRecorder,
 } from "./audit/recorder.ts";
 export { isAllowedEmail, parseAllowedEmails } from "./auth/allowlist.ts";
+export { linkOAuthClientsToResource } from "./auth/client-resources.ts";
 export { type Auth, type CreateAuthOptions, createAuth } from "./auth/index.ts";
 export { createDb, type Db } from "./db/index.ts";
 export { escapeHtml, googleAccessDeniedPage, linkAccessPage, notFoundAppPage } from "./html.ts";
 export { createIdempotency, IDEMPOTENCY_SKIP_HEADER } from "./idempotency/middleware.ts";
 export {
   type AuthedMcpHandler,
-  createAuthServerMetadataHandler,
+  type AuthHandler,
+  createDiscoveryHandler,
   createMcpAuthGuard,
-  createProtectedResourceMetadataHandler,
   deriveMcpAuthConfig,
   type McpAuthConfig,
   mcpHostGuard,

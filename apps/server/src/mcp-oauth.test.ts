@@ -11,13 +11,15 @@ import {
   createAuditRecorder,
   type Db,
   isAllowedEmail,
+  linkOAuthClientsToResource,
   parseAllowedEmails,
 } from "@quick/core/server";
 import { eq } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
-import { withTestAuth } from "@quick/core/server/test";
+import { GOOGLE_SIGN_IN, withTestAuth } from "@quick/core/server/test";
 import type { UserId } from "@quick/core/shared";
 import { createApp } from "./composition.ts";
+import legacy from "./fixtures/better-auth-1.6.33-oauth.json";
 
 const OWNER_EMAIL = "owner@example.com";
 const REDIRECT_URI = "http://127.0.0.1:33418/callback";
@@ -63,7 +65,10 @@ const withBootedServer = async (fn: (b: Booted) => Promise<void>): Promise<void>
   await withTestAuth({ baseURL: origin }, async ({ auth, db, signSessionCookie }) => {
     fetchApp = buildApp(auth, db, origin, `localhost:${server.port}`).fetch;
     const ctx = await auth.$context;
-    const user = await ctx.internalAdapter.createUser({ name: "Owner", email: OWNER_EMAIL });
+    const user = await ctx.internalAdapter.createUser(
+      { name: "Owner", email: OWNER_EMAIL },
+      GOOGLE_SIGN_IN,
+    );
     const session = await ctx.internalAdapter.createSession(user.id);
     const cookie = `Quick.session_token=${await signSessionCookie(session.token)}`;
     await fn({ origin, cookie });
@@ -110,7 +115,7 @@ const runAuthorizationCodeFlow = async (origin: string, cookie: string) => {
       response_types: ["code"],
     }),
   });
-  expect(registered.status).toBe(200);
+  expect(registered.status).toBe(201);
   const client_id = stringField(await registered.json(), "client_id");
 
   const verifier = base64url(randomBytes(32));
@@ -226,6 +231,71 @@ describe("MCP OAuth 2.1 (DCR → authorize → consent → token → /mcp)", () 
     });
   });
 
+  test("root discovery documents are Better Auth's own, publicly readable", async () => {
+    await withBootedServer(async ({ origin }) => {
+      const json = async (path: string): Promise<{ res: Response; doc: unknown }> => {
+        const res = await fetch(`${origin}${path}`);
+        expect(res.status).toBe(200);
+        return { res, doc: await res.json() };
+      };
+      const authServer = (await json("/api/auth/.well-known/oauth-authorization-server")).doc;
+      const openid = (await json("/api/auth/.well-known/openid-configuration")).doc;
+      expect(stringField(authServer, "issuer")).toBe(`${origin}/api/auth`);
+      expect(field(authServer, "code_challenge_methods_supported")).toEqual(["S256"]);
+
+      const expected: [string, unknown][] = [
+        ["/.well-known/oauth-authorization-server", authServer],
+        ["/.well-known/oauth-authorization-server/api/auth", authServer],
+        ["/.well-known/openid-configuration", openid],
+        ["/.well-known/openid-configuration/api/auth", openid],
+      ];
+      for (const [path, doc] of expected) {
+        const got = await json(path);
+        expect(got.res.headers.get("access-control-allow-origin")).toBe("*");
+        expect(got.doc).toEqual(doc);
+      }
+
+      for (const path of [
+        "/.well-known/oauth-protected-resource",
+        "/.well-known/oauth-protected-resource/mcp",
+      ]) {
+        const { res, doc } = await json(path);
+        expect(res.headers.get("access-control-allow-origin")).toBe("*");
+        expect(stringField(doc, "resource")).toBe(`${origin}/mcp`);
+        expect(field(doc, "authorization_servers")).toEqual([`${origin}/api/auth`]);
+        expect(field(doc, "bearer_methods_supported")).toEqual(["header"]);
+      }
+    });
+  });
+
+  test("authorization without a PKCE challenge is refused", async () => {
+    await withBootedServer(async ({ origin, cookie }) => {
+      const registered = await fetch(`${origin}/api/auth/oauth2/register`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: [REDIRECT_URI],
+          token_endpoint_auth_method: "none",
+        }),
+      });
+      const client_id = stringField(await registered.json(), "client_id");
+      const authorizeUrl = new URL(`${origin}/api/auth/oauth2/authorize`);
+      authorizeUrl.search = new URLSearchParams({
+        response_type: "code",
+        client_id,
+        redirect_uri: REDIRECT_URI,
+        scope: "openid offline_access",
+        state: "s",
+        resource: `${origin}/mcp`,
+      }).toString();
+      const res = await fetch(authorizeUrl, { headers: { cookie }, redirect: "manual" });
+      const target = location(res);
+      expect(target.pathname).not.toBe("/consent");
+      expect(target.searchParams.get("code")).toBeNull();
+      expect(target.searchParams.get("error")).toBe("invalid_request");
+    });
+  });
+
   test("/mcp rejects a missing or forged bearer token", async () => {
     await withBootedServer(async ({ origin }) => {
       expect((await listTools(origin, "")).status).toBe(401);
@@ -240,6 +310,137 @@ describe("MCP OAuth 2.1 (DCR → authorize → consent → token → /mcp)", () 
       expect(tokenRes.status).toBe(200);
       const token = stringField(await tokenRes.json(), "token");
       expect((await listTools(origin, token)).status).toBe(401);
+    });
+  });
+});
+
+const TIMESTAMP_COLUMNS = new Set(["created_at", "updated_at", "expires_at", "auth_time"]);
+
+const isBinding = (value: unknown): value is string | number | null =>
+  value === null || typeof value === "string" || typeof value === "number";
+
+// The fixture holds rows written by better-auth 1.6.33 during a real authorization-code
+// flow. Shifting its timestamps to "now" keeps its sessions and refresh tokens unexpired.
+const seedLegacyRows = (db: Db): void => {
+  const [user] = legacy.rows.users;
+  if (user === undefined) throw new Error("fixture has no user");
+  const shift = Date.now() - user.created_at;
+  for (const [table, rows] of Object.entries(legacy.rows)) {
+    for (const row of rows) {
+      const columns = Object.keys(row);
+      const values = Object.entries(row).map(([column, value]) => {
+        if (!isBinding(value)) throw new Error(`unexpected ${table}.${column} value`);
+        return TIMESTAMP_COLUMNS.has(column) && typeof value === "number" ? value + shift : value;
+      });
+      db.$client
+        .query(
+          `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
+        )
+        .run(...values);
+    }
+  }
+};
+
+type Upgraded = Booted & { db: Db };
+
+const withUpgradedServer = async (fn: (b: Upgraded) => Promise<void>): Promise<void> => {
+  let fetchApp: (req: Request) => Response | Promise<Response> = () =>
+    new Response("not ready", { status: 503 });
+  const server = Bun.serve({ port: 0, fetch: (req) => fetchApp(req) });
+  servers.push(server);
+  const origin = `http://localhost:${server.port}`;
+
+  await withTestAuth(
+    { baseURL: origin, seedAtMigration: { tag: "0007_tearful_penance", seed: seedLegacyRows } },
+    async ({ auth, db, signSessionCookie }) => {
+      fetchApp = buildApp(auth, db, origin, `localhost:${server.port}`).fetch;
+      await auth.$context;
+      const [session] = legacy.rows.sessions;
+      if (session === undefined) throw new Error("fixture has no session");
+      const cookie = `Quick.session_token=${await signSessionCookie(session.token)}`;
+      await fn({ origin, cookie, db });
+    },
+  );
+};
+
+const refreshLegacyToken = (origin: string) =>
+  fetch(`${origin}/api/auth/oauth2/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: legacy.refreshToken,
+      client_id: legacy.clientId,
+      resource: `${origin}/mcp`,
+    }),
+  });
+
+describe("upgrading from better-auth 1.6.33 (data written by the previous OAuth provider)", () => {
+  test("without the client-resource backfill, a pre-upgrade client cannot refresh", async () => {
+    await withUpgradedServer(async ({ origin }) => {
+      const res = await refreshLegacyToken(origin);
+      expect(res.status).toBe(400);
+      expect(stringField(await res.json(), "error")).toBe("invalid_target");
+    });
+  });
+
+  test("after the backfill, a pre-upgrade refresh token still mints a token /mcp accepts", async () => {
+    await withUpgradedServer(async ({ origin, db }) => {
+      expect(await linkOAuthClientsToResource(db, `${origin}/mcp`)).toBe(1);
+      expect(await linkOAuthClientsToResource(db, `${origin}/mcp`)).toBe(0);
+
+      const res = await refreshLegacyToken(origin);
+      if (res.status !== 200) throw new Error(await res.text());
+      const tokens = await readTokens(res);
+      expect([field(decodeJwtPayload(tokens.access_token), "aud")].flat()).toContain(
+        `${origin}/mcp`,
+      );
+      expect((await listTools(origin, tokens.access_token)).status).toBe(200);
+    });
+  });
+
+  test("after the backfill, a pre-upgrade client can run a fresh authorization-code flow", async () => {
+    await withUpgradedServer(async ({ origin, cookie, db }) => {
+      await linkOAuthClientsToResource(db, `${origin}/mcp`);
+      const verifier = base64url(randomBytes(32));
+      const authorizeUrl = new URL(`${origin}/api/auth/oauth2/authorize`);
+      authorizeUrl.search = new URLSearchParams({
+        response_type: "code",
+        client_id: legacy.clientId,
+        redirect_uri: legacy.redirectUri,
+        scope: "openid profile email offline_access",
+        state: "s",
+        code_challenge: base64url(createHash("sha256").update(verifier).digest()),
+        code_challenge_method: "S256",
+        resource: `${origin}/mcp`,
+      }).toString();
+      const authorized = await fetch(authorizeUrl, { headers: { cookie }, redirect: "manual" });
+      let callback = location(authorized);
+      if (callback.pathname === "/consent") {
+        const consented = await fetch(`${origin}/api/auth/oauth2/consent`, {
+          method: "POST",
+          headers: { "content-type": "application/json", cookie, origin },
+          body: JSON.stringify({ accept: true, oauth_query: callback.search.slice(1) }),
+        });
+        callback = new URL(stringField(await consented.json(), "url"));
+      }
+      const code = callback.searchParams.get("code");
+      if (code === null) throw new Error(`no code in ${callback.toString()}`);
+      const exchanged = await fetch(`${origin}/api/auth/oauth2/token`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          redirect_uri: legacy.redirectUri,
+          client_id: legacy.clientId,
+          code_verifier: verifier,
+          resource: `${origin}/mcp`,
+        }),
+      });
+      if (exchanged.status !== 200) throw new Error(await exchanged.text());
+      const tokens = await readTokens(exchanged);
+      expect((await listTools(origin, tokens.access_token)).status).toBe(200);
     });
   });
 });

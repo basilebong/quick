@@ -1,4 +1,4 @@
-import { oauthProvider } from "@better-auth/oauth-provider";
+import { mcp } from "@better-auth/mcp";
 import { type BetterAuthPlugin, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { jwt } from "better-auth/plugins";
@@ -22,15 +22,14 @@ export type CreateAuthOptions = {
 export const createAuth = (opts: CreateAuthOptions) => {
   const plugins: BetterAuthPlugin[] = [
     jwt(),
-    oauthProvider({
+    mcp({
+      resource: opts.mcpResource,
       loginPage: "/sign-in",
       consentPage: "/consent",
-      validAudiences: [opts.mcpResource],
       allowDynamicClientRegistration: true,
       allowUnauthenticatedClientRegistration: true,
-      requirePKCE: true,
+      clientRegistrationDefaultApplicationType: "infer",
       accessTokenExpiresIn: 60 * 15,
-      silenceWarnings: { oauthAuthServerConfig: true },
     }),
   ];
 

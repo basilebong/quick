@@ -8,7 +8,7 @@ import {
   type Tenant,
   type TenantVariables,
 } from "@quick/core/server";
-import { withTestAuth } from "@quick/core/server/test";
+import { GOOGLE_SIGN_IN, withTestAuth } from "@quick/core/server/test";
 import { parseUserId } from "@quick/core/shared";
 import { Hono } from "hono";
 import { createHostingService } from "./service.ts";
@@ -26,7 +26,10 @@ type Ctx = {
 const setup = async ({ auth, db, signSessionCookie }: Ctx) => {
   const service = createHostingService(db, { appsDir: mkdtempSync(join(tmpdir(), "quick-sso-")) });
   const authCtx = await auth.$context;
-  const user = await authCtx.internalAdapter.createUser({ name: "Viewer", email: "v@example.com" });
+  const user = await authCtx.internalAdapter.createUser(
+    { name: "Viewer", email: "v@example.com" },
+    GOOGLE_SIGN_IN,
+  );
   const userId = parseUserId(user.id);
   const created = await service.createApp(
     { slug: "acme", name: "Acme", shareMode: "google" },

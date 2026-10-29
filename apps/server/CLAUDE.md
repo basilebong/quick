@@ -7,7 +7,7 @@ Composition only — NO business logic.
 - Better Auth handler mounted at `/api/auth/*` MUST come BEFORE any middleware
   that calls `auth.api.getSession`.
 - `requireSession` gates `/api/*` (browser sessions).
-- `/mcp` is gated by the OAuth token guard (`createMcpAuthGuard`/`mcpHandler`),
+- `/mcp` is gated by the OAuth token guard (`createMcpAuthGuard`, over `@better-auth/mcp`),
   NOT by `requireSession` — so it is mounted OUTSIDE `/api/*` (see `mcp.ts`).
   The root `/.well-known/oauth-*` discovery routes are public.
 - The MCP transport is the SDK's `WebStandardStreamableHTTPServerTransport`.

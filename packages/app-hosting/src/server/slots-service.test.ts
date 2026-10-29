@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Auth, Db } from "@quick/core/server";
-import { withTestAuth } from "@quick/core/server/test";
+import { GOOGLE_SIGN_IN, withTestAuth } from "@quick/core/server/test";
 import { parseAppId, parseUserId } from "@quick/core/shared";
 import { createHostingService } from "./service.ts";
 import { createSlotsService } from "./slots-service.ts";
@@ -11,10 +11,13 @@ const NOT_IMAGE = new TextEncoder().encode("this is not an image");
 
 const setup = async (ctx: { auth: Auth; db: Db }, slug = "acme") => {
   const authCtx = await ctx.auth.$context;
-  const user = await authCtx.internalAdapter.createUser({
-    name: "Owner",
-    email: `o-${slug}@x.com`,
-  });
+  const user = await authCtx.internalAdapter.createUser(
+    {
+      name: "Owner",
+      email: `o-${slug}@x.com`,
+    },
+    GOOGLE_SIGN_IN,
+  );
   const actor = parseUserId(user.id);
   const hosting = createHostingService(ctx.db, { appsDir: "/tmp/quick-slots-unused" });
   const created = await hosting.createApp({ slug, name: slug, shareMode: "google" }, actor);

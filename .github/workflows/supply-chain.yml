@@ -33,15 +33,6 @@ jobs:
 
       - uses: ./.github/actions/setup
 
-      # One advisory is ignored via pnpm.auditConfig.ignoreGhsas in package.json:
-      # GHSA-p2fr-6hmx-4528 (@better-auth/oauth-provider, CVSS 3.1) — cross-audience
-      # access-token escalation that requires >1 configured audience. Quick configures a
-      # single MCP resource (validAudiences: [mcpResource]), so it is not exploitable here.
-      # Fixed upstream in 1.7.0 GA. 1.7.12 (2026-10-22 check) no longer has the
-      # exactOptionalPropertyTypes type break, but adopting it is an auth migration
-      # (persisted OAuth resources, per-client resource links, schema migration) that
-      # remove the ignore together with. Full re-verification history in
-      # .claude/rules/security.md § "Deferred advisories" and issue #13.
       - name: Audit known vulnerabilities (fail on moderate+)
         run: pnpm audit --audit-level=moderate
 
@@ -52,14 +43,6 @@ jobs:
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure
-          # Deferred: GHSA-p2fr-6hmx-4528 (@better-auth/oauth-provider, CVSS 3.1) — cross-audience
-          #   token escalation that needs >1 configured audience. Quick uses a single MCP resource
-          #   (validAudiences: [mcpResource]), so it is not exploitable here. Fixed upstream since
-          #   1.7.0 GA; as of 1.7.12 the type break is gone and the remaining blocker is the
-          #   1.7.x auth/schema migration — see security.md for the full re-verification
-          #   history. This mirrors pnpm.auditConfig.ignoreGhsas in package.json —
-          #   remove BOTH when that migration lands. See issue #13.
-          allow-ghsas: GHSA-p2fr-6hmx-4528
           # MPL-2.0: lightningcss (Tailwind v4 CSS pipeline, stack-locked). Use unmodified at build time;
           #   MPL §3.3 explicitly allows combining unmodified MPL files into a Larger Work under any license.
           # CC-BY-4.0: caniuse-lite (browser-support dataset pulled by Babel→browserslist). Build-time data only,
@@ -74,8 +57,6 @@ jobs:
           allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, CC0-1.0, Unlicense, MPL-2.0, CC-BY-4.0, BlueOak-1.0.0, Python-2.0
           # rou3 (Hono router): package.json declares "license": "MIT" and ships an MIT LICENSE file;
           #   GitHub's scanner spuriously reports "MIT AND MS-PL" — verified false-positive against upstream source.
-          # @better-fetch/fetch (better-auth HTTP client): package.json missing license field, but the published
-          #   tarball ships an MIT LICENSE (copyright Bereket Engida). Verified in node_modules @ 1.1.21.
           # json-schema-typed (TypeScript types for JSON Schema, pulled in transitively by
           #   @modelcontextprotocol/sdk via bunqueue): package.json declares "license": "BSD-2-Clause" and ships
           #   a pure BSD-2-Clause LICENSE.md; GitHub's scanner spuriously appends "AND JSON" — verified false-positive
@@ -84,4 +65,4 @@ jobs:
           #   (Mathias Bynens) but ship Unicode data tables, so GitHub's scanner reports
           #   "LicenseRef-scancode-unicode AND MIT". The Unicode license is permissive (BSD-style). Pulled by
           #   workbox-build's Babel (preset-env) toolchain at build time; verified MIT in node_modules.
-          allow-dependencies-licenses: 'pkg:npm/rou3, pkg:npm/%40better-fetch/fetch, pkg:npm/json-schema-typed, pkg:npm/unicode-property-aliases-ecmascript, pkg:npm/unicode-match-property-value-ecmascript'
+          allow-dependencies-licenses: 'pkg:npm/rou3, pkg:npm/json-schema-typed, pkg:npm/unicode-property-aliases-ecmascript, pkg:npm/unicode-match-property-value-ecmascript'

@@ -11,6 +11,7 @@ import {
   createAuth,
   createDb,
   isAllowedEmail,
+  linkOAuthClientsToResource,
   parseAllowedEmails,
 } from "@quick/core/server";
 import { eq } from "@quick/core/server/drizzle";
@@ -35,6 +36,7 @@ const allowedHosts = [
 
 const db = createDb({ path: env.DATABASE_PATH });
 
+const mcpResource = `${env.BETTER_AUTH_URL}/mcp`;
 const auth = createAuth({
   db,
   baseURL: env.BETTER_AUTH_URL,
@@ -42,8 +44,10 @@ const auth = createAuth({
   google: { clientId: env.GOOGLE_ID, clientSecret: env.GOOGLE_SECRET },
   allowedEmails,
   useSecureCookies: secureCookies,
-  mcpResource: `${env.BETTER_AUTH_URL}/mcp`,
+  mcpResource,
 });
+await auth.$context;
+await linkOAuthClientsToResource(db, mcpResource);
 
 const hosting = createHostingService(db, { appsDir });
 const slots = createSlotsService(db);

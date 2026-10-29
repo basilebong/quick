@@ -6,7 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { type Auth, createAuditRecorder } from "@quick/core/server";
-import { withTestAuth } from "@quick/core/server/test";
+import { GOOGLE_SIGN_IN, withTestAuth } from "@quick/core/server/test";
 import { parseAppId, parseUserId } from "@quick/core/shared";
 import * as v from "valibot";
 import { DEPLOY_MAX_TOTAL_BYTES } from "../server/deploy.ts";
@@ -21,7 +21,10 @@ const setup = async (ctx: Ctx) => {
   const slots = createSlotsService(ctx.db);
   const audit = createAuditRecorder(ctx.db);
   const authCtx = await ctx.auth.$context;
-  const user = await authCtx.internalAdapter.createUser({ name: "Owner", email: "o@example.com" });
+  const user = await authCtx.internalAdapter.createUser(
+    { name: "Owner", email: "o@example.com" },
+    GOOGLE_SIGN_IN,
+  );
   const actor = parseUserId(user.id);
 
   const server = new McpServer({ name: "test", version: "0.0.0" });

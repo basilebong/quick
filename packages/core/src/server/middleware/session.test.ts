@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
-import { withTestAuth } from "../test/with-test-auth.ts";
+import { GOOGLE_SIGN_IN, withTestAuth } from "../test/with-test-auth.ts";
 import { createRequireSession } from "./session.ts";
 
 describe("createRequireSession", () => {
@@ -20,10 +20,13 @@ describe("createRequireSession", () => {
       { allowedEmails: "basile@example.com" },
       async ({ auth, signSessionCookie }) => {
         const ctx = await auth.$context;
-        const user = await ctx.internalAdapter.createUser({
-          name: "Basile",
-          email: "basile@example.com",
-        });
+        const user = await ctx.internalAdapter.createUser(
+          {
+            name: "Basile",
+            email: "basile@example.com",
+          },
+          GOOGLE_SIGN_IN,
+        );
         const sessionRow = await ctx.internalAdapter.createSession(user.id);
         const signed = await signSessionCookie(sessionRow.token);
 

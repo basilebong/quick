@@ -86,6 +86,7 @@ export const createApp = (o: ComposeOptions) => {
     .route(
       "/",
       mountMcp({
+        authHandler: (req) => o.auth.handler(req),
         baseURL: o.baseURL,
         jwksOrigin: o.jwksOrigin,
         allowedHosts: o.allowedHosts,
