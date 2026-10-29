@@ -1,2 +1,2 @@
 export { createTestDb } from "./db.ts";
-export { withTestAuth } from "./with-test-auth.ts";
+export { GOOGLE_SIGN_IN, withTestAuth } from "./with-test-auth.ts";

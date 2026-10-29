@@ -26,19 +26,24 @@ external middleware, so we enforce it with the `mcpHostGuard` Hono middleware
 
 ## Auth
 
-OAuth 2.1 via Better Auth's `@better-auth/oauth-provider` plugin (paired with the
-`jwt()` plugin) — the server IS the OAuth Authorization Server for MCP clients.
-Claude Desktop / claude.ai discover it through
-`/.well-known/oauth-protected-resource` + `/.well-known/oauth-authorization-server`,
+OAuth 2.1 via Better Auth's `mcp()` plugin from `@better-auth/mcp` (an
+`@better-auth/oauth-provider` configured for MCP, paired with the `jwt()` plugin) —
+the server IS the OAuth Authorization Server for MCP clients. `mcp({ resource })`
+binds every access token's audience to the `/mcp` resource and links newly
+registered clients to it; the provider only issues tokens for resources a client is
+linked to, so clients registered before better-auth 1.7 are linked at boot by
+`linkOAuthClientsToResource`. Claude Desktop / claude.ai discover the server through
+`/.well-known/oauth-protected-resource` + `/.well-known/oauth-authorization-server`
+(Better Auth's own documents, re-served at the root by `createDiscoveryHandler`),
 self-register via Dynamic Client Registration, then run the PKCE (S256)
 authorization-code flow. The user signs in with Google (the existing social
 provider) and approves the `/consent` screen.
 
 `/mcp` is protected by `createMcpAuthGuard` in `@quick/core/server` (a thin
-wrapper over `mcpHandler` from `@better-auth/oauth-provider`): it verifies the
-Bearer JWT against our JWKS (`/api/auth/jwks`), checks issuer + audience, and
-yields `jwt.sub` (the `UserId`). Every tool call records `{ userId, via: "mcp" }`
-in the audit log.
+wrapper over `createMcpProtectedRequestHandler` from `@better-auth/mcp`): it
+verifies the Bearer JWT against our JWKS (`/api/auth/jwks`), checks issuer +
+audience, and yields `jwt.sub` (the `UserId`). Every tool call records
+`{ userId, via: "mcp" }` in the audit log.
 
 Do NOT hand-roll bearer validation. Do NOT bypass the auth guard for
 "convenience." API keys are NOT used here: Claude connects over OAuth, and the
@@ -118,6 +123,7 @@ auto-diffed against prose; keep them honest by hand when you touch
 
 Tool handlers are tested in `packages/app-*/src/tools/**.test.ts` by driving a
 real `McpServer` over the SDK's `InMemoryTransport` with an SDK `Client` (no
-mocks), against a fresh `:memory:` DB via `withTestAuth`. The OAuth happy path
-(discovery → token → authenticated `/mcp`) is verified end-to-end with the MCP
-Inspector and against the built Docker image.
+mocks), against a fresh `:memory:` DB via `withTestAuth`. The OAuth flow
+(discovery → DCR → authorize → consent → token → refresh → authenticated `/mcp`,
+plus rows written by better-auth 1.6.33 surviving the upgrade) is covered by
+`apps/server/src/mcp-oauth.test.ts`.

@@ -1,4 +1,4 @@
-import { mcpHandler } from "@better-auth/oauth-provider";
+import { createMcpProtectedRequestHandler } from "@better-auth/mcp";
 import { parseUserId, type UserId } from "../../shared/index.ts";
 
 export type McpAuthConfig = {
@@ -24,11 +24,8 @@ export type AuthedMcpHandler = (req: Request, actor: UserId) => Promise<Response
 export const createMcpAuthGuard =
   (config: McpAuthConfig) =>
   (handler: AuthedMcpHandler): ((req: Request) => Promise<Response>) =>
-    mcpHandler(
-      {
-        verifyOptions: { issuer: config.issuer, audience: config.audience },
-        jwksUrl: config.jwksUrl,
-      },
+    createMcpProtectedRequestHandler(
+      { issuer: config.issuer, audience: config.audience, jwksUrl: config.jwksUrl },
       (req, jwt) => {
         if (typeof jwt.sub !== "string") {
           return new Response(JSON.stringify({ error: "invalid_token" }), {

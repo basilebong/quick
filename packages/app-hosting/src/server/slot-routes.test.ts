@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Auth, Db, TenantVariables, ViewerVariables } from "@quick/core/server";
-import { withTestAuth } from "@quick/core/server/test";
+import { GOOGLE_SIGN_IN, withTestAuth } from "@quick/core/server/test";
 import { type AppId, parseAppId, parseAppSlug, parseUserId } from "@quick/core/shared";
 import { Hono } from "hono";
 import { SLOT_MAX_BYTES } from "../shared/index.ts";
@@ -14,7 +14,10 @@ const NOT_IMAGE = new TextEncoder().encode("definitely not an image");
 
 const seed = async (ctx: { auth: Auth; db: Db }) => {
   const authCtx = await ctx.auth.$context;
-  const user = await authCtx.internalAdapter.createUser({ name: "Owner", email: "o@x.com" });
+  const user = await authCtx.internalAdapter.createUser(
+    { name: "Owner", email: "o@x.com" },
+    GOOGLE_SIGN_IN,
+  );
   const actor = parseUserId(user.id);
   const hosting = createHostingService(ctx.db, { appsDir: "/tmp/quick-slot-routes" });
   const created = await hosting.createApp({ slug: "acme", name: "Acme", shareMode: "link" }, actor);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { withTestAuth } from "../test/with-test-auth.ts";
+import { GOOGLE_SIGN_IN, withTestAuth } from "../test/with-test-auth.ts";
 
 describe("auth (integration)", () => {
   test("handler responds to /api/auth/get-session with a null session for an anonymous request", async () => {
@@ -16,10 +16,13 @@ describe("auth (integration)", () => {
   test("any email may be created (no allowlist gate at sign-up)", async () => {
     await withTestAuth({}, async ({ auth }) => {
       const ctx = await auth.$context;
-      const user = await ctx.internalAdapter.createUser({
-        name: "Stranger",
-        email: "stranger@example.com",
-      });
+      const user = await ctx.internalAdapter.createUser(
+        {
+          name: "Stranger",
+          email: "stranger@example.com",
+        },
+        GOOGLE_SIGN_IN,
+      );
       expect(user.email).toBe("stranger@example.com");
       expect(user.id).toBeString();
     });

@@ -14,7 +14,7 @@ import {
 } from "@quick/core/server";
 import { eq } from "@quick/core/server/drizzle";
 import { users } from "@quick/core/server/schema";
-import { withTestAuth } from "@quick/core/server/test";
+import { GOOGLE_SIGN_IN, withTestAuth } from "@quick/core/server/test";
 import { parseAppId, parseUserId, type UserId } from "@quick/core/shared";
 import { createApp } from "./composition.ts";
 
@@ -50,7 +50,10 @@ const build = async (auth: Auth, db: Db, signSessionCookie: (t: string) => Promi
   });
 
   const ctx = await auth.$context;
-  const user = await ctx.internalAdapter.createUser({ name: "Owner", email: OWNER_EMAIL });
+  const user = await ctx.internalAdapter.createUser(
+    { name: "Owner", email: OWNER_EMAIL },
+    GOOGLE_SIGN_IN,
+  );
   const ownerId = parseUserId(user.id);
   const session = await ctx.internalAdapter.createSession(user.id);
   const cookie = `Quick.session_token=${await signSessionCookie(session.token)}`;
@@ -104,10 +107,13 @@ describe("composition (tenancy + CSRF wiring)", () => {
       expect(okRes.status).toBe(200);
 
       const ctx = await auth.$context;
-      const stranger = await ctx.internalAdapter.createUser({
-        name: "Stranger",
-        email: "stranger@example.com",
-      });
+      const stranger = await ctx.internalAdapter.createUser(
+        {
+          name: "Stranger",
+          email: "stranger@example.com",
+        },
+        GOOGLE_SIGN_IN,
+      );
       const session = await ctx.internalAdapter.createSession(stranger.id);
       const strangerCookie = `Quick.session_token=${await signSessionCookie(session.token)}`;
 

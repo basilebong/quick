@@ -2,9 +2,9 @@ import type { HostingService, SlotsService } from "@quick/app-hosting/server";
 import { QUICK_BUILD_GUIDE, registerHostingTools } from "@quick/app-hosting/tools";
 import {
   type AuditRecorder,
-  createAuthServerMetadataHandler,
+  type AuthHandler,
+  createDiscoveryHandler,
   createMcpAuthGuard,
-  createProtectedResourceMetadataHandler,
   deriveMcpAuthConfig,
   mcpHostGuard,
   runMcpRequest,
@@ -14,6 +14,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 
 export type McpDeps = {
+  authHandler: AuthHandler;
   baseURL: string;
   jwksOrigin: string;
   allowedHosts: readonly string[];
@@ -48,19 +49,18 @@ export const mountMcp = (deps: McpDeps) => {
     );
   });
 
-  const authServerMetadata = createAuthServerMetadataHandler(deps.baseURL);
-  const protectedResourceMetadata = createProtectedResourceMetadataHandler(
-    config.audience,
-    config.issuer,
-  );
+  const discovery = createDiscoveryHandler(deps.authHandler, deps.baseURL);
+  const authServerMetadata = discovery("/api/auth/.well-known/oauth-authorization-server");
+  const openidConfiguration = discovery("/api/auth/.well-known/openid-configuration");
+  const protectedResourceMetadata = discovery("/.well-known/oauth-protected-resource");
 
   return new Hono()
-    .get("/.well-known/oauth-authorization-server", () => authServerMetadata())
-    .get("/.well-known/oauth-authorization-server/api/auth", () => authServerMetadata())
-    .get("/.well-known/openid-configuration", () => authServerMetadata())
-    .get("/.well-known/openid-configuration/api/auth", () => authServerMetadata())
-    .get("/.well-known/oauth-protected-resource", () => protectedResourceMetadata())
-    .get("/.well-known/oauth-protected-resource/mcp", () => protectedResourceMetadata())
+    .get("/.well-known/oauth-authorization-server", authServerMetadata)
+    .get("/.well-known/oauth-authorization-server/api/auth", authServerMetadata)
+    .get("/.well-known/openid-configuration", openidConfiguration)
+    .get("/.well-known/openid-configuration/api/auth", openidConfiguration)
+    .get("/.well-known/oauth-protected-resource", protectedResourceMetadata)
+    .get("/.well-known/oauth-protected-resource/mcp", protectedResourceMetadata)
     .use(
       "/mcp",
       cors({

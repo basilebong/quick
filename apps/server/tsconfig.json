@@ -9,7 +9,7 @@
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/**/*.json"],
   "references": [
     { "path": "../../packages/core" },
     { "path": "../../packages/app-hosting" },
