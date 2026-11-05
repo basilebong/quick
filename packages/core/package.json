@@ -16,12 +16,12 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@better-auth/mcp": "1.7.14",
-    "@better-auth/oauth-provider": "1.7.14",
+    "@better-auth/mcp": "1.7.16",
+    "@better-auth/oauth-provider": "1.7.16",
     "@modelcontextprotocol/sdk": "1.32.1",
-    "better-auth": "1.7.14",
+    "better-auth": "1.7.16",
     "drizzle-orm": "0.45.4",
-    "hono": "4.13.13",
+    "hono": "4.13.16",
     "valibot": "1.5.0"
   }
 }
