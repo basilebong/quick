@@ -73,6 +73,15 @@ migration changed, so a later bump does not undo it:
 - `bun run auth:generate` uses the 1.7 CLI (`auth`); it still drops the hand-added
   `accounts_provider_account_unique` composite index, so re-add it after regenerating.
 
+Below-gate advisories are not deferred, but are recorded so the next audit re-checks them:
+- GHSA-gcqx-w48m-w2h4 (low, `deepmerge@>=4.2.0 <=4.3.1` prototype poisoning of the
+  returned object). `vite-plugin-pwa` → `workbox-build` → `@rollup/plugin-node-resolve@16.0.3`
+  (latest) → `deepmerge@4.3.1` (latest). No patched version exists, so neither an upgrade
+  nor an override can clear it. Build-time only: it merges rollup plugin options from our
+  own `vite.config.ts`, never untrusted input, and it is not in the runtime image's bundle.
+  It is below `--audit-level=moderate`, so it needs no `ignoreGhsas` entry. **Re-check when
+  `deepmerge` or `@rollup/plugin-node-resolve` publishes a new release.**
+
 Do not add further entries without the same three things here: the ID, why we are not
 exposed, and the condition that removes it. Never lower `--audit-level` to dodge an
 advisory — that hides every future one too.
@@ -93,10 +102,24 @@ comments, so each override is justified here:
   `esbuild@0.18.20` and the audit fails. Re-verified 2026-10-15 against
   `drizzle-kit@0.31.11` (still latest stable): its published `dependencies` still list
   `@esbuild-kit/esm-loader: ^2.5.5`, and a fresh resolve without the override still
-  pulls `esbuild@0.18.20` and fails the audit. Re-verified 2026-10-22 and 2026-10-29:
-  `0.31.11` is still `latest` (`1.0.0` is only at `rc.5`), and removing the override
-  still resolves `esbuild@0.18.20` and fails the audit. **Remove when
+  pulls `esbuild@0.18.20` and fails the audit. Re-verified 2026-10-22, 2026-10-29 and
+  2026-11-12: `0.31.11` is still `latest` (`1.0.0` is only at `rc.5`), and removing the
+  override still resolves `esbuild@0.18.20` and fails the audit. **Remove when
   `drizzle-kit` drops `@esbuild-kit/esm-loader`.**
+- **`glob@>=9.0.0 <14.0.2` → `14.0.3`** (GHSA-3g3m-2fjr-6pw4, AbortSignal cancellation
+  bypass; also clears GHSA-g3hv-75wg-m249 in `minimatch@<11.0.1`, because glob 14 depends
+  on `minimatch@^11.0.2`). `vite-plugin-pwa@2.0.0` → `workbox-build@7.4.1` declares
+  `glob: ^11.0.1`; both are `latest` (`workbox-build`'s `next` tag is the older 6.4.0), and
+  the 11.x line ends at the vulnerable 11.1.0. The advisory's patched range exists only in
+  14.x (the 13.0.7 backport is still inside the published vulnerable range). glob 14 is
+  compatible for workbox: it removed the CLI and changed matcher internals, but
+  `workbox-build`'s only call is `globSync(pattern, { cwd, follow, ignore })`, which 14
+  keeps. Verified 2026-11-12: the generated `sw.js` precache list is identical (22 entries)
+  with glob 11.1.0 and 14.0.3. Pinned exactly, not `>=`, so a fresh resolve cannot pull a
+  days-old glob release: 14.0.3 and its new transitives (`minimatch@11.0.3`,
+  `path-scurry@3.0.0`, `@isaacs/nonrecursive-glob-match@1.0.3`) were resolved as the
+  newest releases at least 14 days old on 2026-11-12. None ships npm provenance attestations.
+  **Remove when `workbox-build` depends on `glob@>=14.0.2`.**
 
 Overrides are not a substitute for a real upgrade. Every entry above must be re-checked
 on each dependency audit and dropped as soon as the upstream chain is fixed.
