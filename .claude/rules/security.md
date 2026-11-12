@@ -106,7 +106,7 @@ comments, so each override is justified here:
   2026-11-12: `0.31.11` is still `latest` (`1.0.0` is only at `rc.5`), and removing the
   override still resolves `esbuild@0.18.20` and fails the audit. **Remove when
   `drizzle-kit` drops `@esbuild-kit/esm-loader`.**
-- **`glob@>=9.0.0 <14.0.2` → `>=14.0.2`** (GHSA-3g3m-2fjr-6pw4, AbortSignal cancellation
+- **`glob@>=9.0.0 <14.0.2` → `14.0.3`** (GHSA-3g3m-2fjr-6pw4, AbortSignal cancellation
   bypass; also clears GHSA-g3hv-75wg-m249 in `minimatch@<11.0.1`, because glob 14 depends
   on `minimatch@^11.0.2`). `vite-plugin-pwa@2.0.0` → `workbox-build@7.4.1` declares
   `glob: ^11.0.1`; both are `latest` (`workbox-build`'s `next` tag is the older 6.4.0), and
@@ -115,7 +115,11 @@ comments, so each override is justified here:
   compatible for workbox: it removed the CLI and changed matcher internals, but
   `workbox-build`'s only call is `globSync(pattern, { cwd, follow, ignore })`, which 14
   keeps. Verified 2026-11-12: the generated `sw.js` precache list is identical (22 entries)
-  with glob 11.1.0 and 14.0.4. **Remove when `workbox-build` depends on `glob@>=14.0.2`.**
+  with glob 11.1.0 and 14.0.3. Pinned exactly, not `>=`, so a fresh resolve cannot pull a
+  days-old glob release: 14.0.3 and its new transitives (`minimatch@11.0.3`,
+  `path-scurry@3.0.0`, `@isaacs/nonrecursive-glob-match@1.0.3`) were resolved as the
+  newest releases at least 14 days old on 2026-11-12. None ships npm provenance attestations.
+  **Remove when `workbox-build` depends on `glob@>=14.0.2`.**
 
 Overrides are not a substitute for a real upgrade. Every entry above must be re-checked
 on each dependency audit and dropped as soon as the upstream chain is fixed.
