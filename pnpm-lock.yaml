@@ -61,8 +61,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
       hono:
-        specifier: 4.13.13
-        version: 4.13.13
+        specifier: 4.13.18
+        version: 4.13.18
 
   apps/web:
     dependencies:
@@ -164,8 +164,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       hono:
-        specifier: 4.13.13
-        version: 4.13.13
+        specifier: 4.13.18
+        version: 4.13.18
       ts-pattern:
         specifier: 5.9.2
         version: 5.9.2
@@ -185,8 +185,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       hono:
-        specifier: 4.13.13
-        version: 4.13.13
+        specifier: 4.13.18
+        version: 4.13.18
       ts-pattern:
         specifier: 5.9.2
         version: 5.9.2
@@ -206,8 +206,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       hono:
-        specifier: 4.13.13
-        version: 4.13.13
+        specifier: 4.13.18
+        version: 4.13.18
       ts-pattern:
         specifier: 5.9.2
         version: 5.9.2
@@ -236,8 +236,8 @@ importers:
         specifier: 0.45.4
         version: 0.45.4(bun-types@1.4.3)(kysely@0.28.17)
       hono:
-        specifier: 4.13.13
-        version: 4.13.13
+        specifier: 4.13.18
+        version: 4.13.18
       valibot:
         specifier: 1.5.0
         version: 1.5.0(typescript@7.0.2)
@@ -1335,8 +1335,8 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
-  '@hono/node-server@2.1.5':
-    resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
+  '@hono/node-server@2.1.7':
+    resolution: {integrity: sha512-Wr0E6S+v2Bw9FkpGNP5BQ5QbJvclUa06UVehd65WFZe6XeJwbrKQQ5wPDevc0IC+QyzbO7v3Llh5uo45IZcSnA==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4 || ^5.0.0-0
@@ -3496,8 +3496,8 @@ packages:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
 
-  hono@4.13.13:
-    resolution: {integrity: sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==}
+  hono@4.13.18:
+    resolution: {integrity: sha512-H9q/E1XizaWstJxUW881dmLxEj+t/TrGGnyxINkm4+sK0qUwsMtFdo2BWI9Vs3cIS19MU6b6iCijoUoEf4f3DA==}
     engines: {node: '>=16.9.0'}
 
   http-errors@2.0.1:
@@ -5828,9 +5828,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
-  '@hono/node-server@2.1.5(hono@4.13.13)':
+  '@hono/node-server@2.1.7(hono@4.13.18)':
     dependencies:
-      hono: 4.13.13
+      hono: 4.13.18
 
   '@isaacs/nonrecursive-glob-match@1.0.3': {}
 
@@ -5860,7 +5860,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.1(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.1.5(hono@4.13.13)
+      '@hono/node-server': 2.1.7(hono@4.13.18)
       ajv: 8.20.0
       ajv-formats: 3.0.1
       content-type: 1.0.5
@@ -5870,7 +5870,7 @@ snapshots:
       eventsource-parser: 3.1.0
       express: 5.2.1
       express-rate-limit: 8.5.2(express@5.2.1)
-      hono: 4.13.13
+      hono: 4.13.18
       jose: 6.2.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -7777,7 +7777,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.13.13: {}
+  hono@4.13.18: {}
 
   http-errors@2.0.1:
     dependencies:
