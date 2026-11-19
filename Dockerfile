@@ -20,7 +20,7 @@ WORKDIR /app
 COPY . .
 RUN pnpm --filter @quick/web build
 
-FROM oven/bun:1-slim AS runtime
+FROM oven/bun:1.4.4-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV DATABASE_PATH=/data/app.db
@@ -45,7 +45,7 @@ CMD ["sh", "-c", "bun ./scripts/migrate.ts && exec bun ./apps/server/src/index.t
 
 FROM deps AS dev
 WORKDIR /app
-COPY --from=oven/bun:1-slim /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1.4.4-slim /usr/local/bin/bun /usr/local/bin/bun
 ENV NODE_ENV=development
 ENV DATABASE_PATH=/data/app.db
 ENV PORT=3000
