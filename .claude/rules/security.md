@@ -102,9 +102,9 @@ comments, so each override is justified here:
   `esbuild@0.18.20` and the audit fails. Re-verified 2026-10-15 against
   `drizzle-kit@0.31.11` (still latest stable): its published `dependencies` still list
   `@esbuild-kit/esm-loader: ^2.5.5`, and a fresh resolve without the override still
-  pulls `esbuild@0.18.20` and fails the audit. Re-verified 2026-10-22, 2026-10-29 and
-  2026-11-12: `0.31.11` is still `latest` (`1.0.0` is only at `rc.5`), and removing the
-  override still resolves `esbuild@0.18.20` and fails the audit. **Remove when
+  pulls `esbuild@0.18.20` and fails the audit. Re-verified 2026-10-22, 2026-10-29,
+  2026-11-12 and 2026-11-19: `0.31.11` is still `latest` (`1.0.0` is only at `rc.5`), and
+  removing the override still resolves `esbuild@0.18.20` and fails the audit. **Remove when
   `drizzle-kit` drops `@esbuild-kit/esm-loader`.**
 - **`glob@>=9.0.0 <14.0.2` → `14.0.3`** (GHSA-3g3m-2fjr-6pw4, AbortSignal cancellation
   bypass; also clears GHSA-g3hv-75wg-m249 in `minimatch@<11.0.1`, because glob 14 depends
@@ -119,7 +119,9 @@ comments, so each override is justified here:
   days-old glob release: 14.0.3 and its new transitives (`minimatch@11.0.3`,
   `path-scurry@3.0.0`, `@isaacs/nonrecursive-glob-match@1.0.3`) were resolved as the
   newest releases at least 14 days old on 2026-11-12. None ships npm provenance attestations.
-  **Remove when `workbox-build` depends on `glob@>=14.0.2`.**
+  Re-verified 2026-11-19: `workbox-build@7.4.1` is still `latest` with `glob: ^11.0.1`, removing
+  the override resolves `glob@11.1.0` and fails the audit, and 14.0.3 has no advisories (14.0.4+
+  are still inside the 30-day window). **Remove when `workbox-build` depends on `glob@>=14.0.2`.**
 
 Overrides are not a substitute for a real upgrade. Every entry above must be re-checked
 on each dependency audit and dropped as soon as the upstream chain is fixed.
